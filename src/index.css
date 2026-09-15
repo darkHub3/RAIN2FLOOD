@@ -1,0 +1,71 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-[#090d16] text-slate-100;
+  }
+}
+
+/* Custom scrollbar for command center telemetry panels */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0b101c;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #1f2d45;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #0284c7;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.2s ease-out forwards;
+}
+
+/* Custom dark styling for Leaflet tooltips */
+.leaflet-dark-tooltip {
+  background-color: #0b101c !important;
+  color: #e2e8f0 !important;
+  border: 1px solid #223554 !important;
+  border-radius: 6px !important;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.7) !important;
+  padding: 4px 8px !important;
+  font-family: 'JetBrains Mono', monospace !important;
+  font-size: 11px !important;
+}
+
+.leaflet-dark-tooltip::before {
+  border-top-color: #0b101c !important;
+}
+
+/* Leaflet attribution compact styling */
+.leaflet-control-attribution {
+  background: rgba(11, 16, 28, 0.8) !important;
+  color: #64748b !important;
+  font-size: 9px !important;
+  font-family: 'JetBrains Mono', monospace !important;
+}
+
+.leaflet-control-attribution a {
+  color: #0284c7 !important;
+}

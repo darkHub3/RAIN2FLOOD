@@ -1,0 +1,181 @@
+import { TimeStep } from '../types';
+
+export interface ChartDataPoint {
+  timeStep: TimeStep;
+  label: string;
+  rainfallMmHr: number;
+  runoffM3s: number;
+  drainageStressPct: number;
+  maxFloodDepthM: number;
+  inundatedAreaHa: number;
+  surchargedNodes: number;
+  overloadedEdges: number;
+}
+
+export const FORECAST_CHART_SERIES: ChartDataPoint[] = [
+  {
+    timeStep: "NOW",
+    label: "NOW (T+0)",
+    rainfallMmHr: 78,
+    runoffM3s: 142.5,
+    drainageStressPct: 72,
+    maxFloodDepthM: 0.18,
+    inundatedAreaHa: 60.4,
+    surchargedNodes: 4,
+    overloadedEdges: 6
+  },
+  {
+    timeStep: "+1HR",
+    label: "+1 HR",
+    rainfallMmHr: 86,
+    runoffM3s: 184.2,
+    drainageStressPct: 87,
+    maxFloodDepthM: 0.32,
+    inundatedAreaHa: 126.9,
+    surchargedNodes: 8,
+    overloadedEdges: 12
+  },
+  {
+    timeStep: "+2HR",
+    label: "+2 HR",
+    rainfallMmHr: 94,
+    runoffM3s: 228.0,
+    drainageStressPct: 103,
+    maxFloodDepthM: 0.61,
+    inundatedAreaHa: 203.2,
+    surchargedNodes: 15,
+    overloadedEdges: 21
+  },
+  {
+    timeStep: "+3HR",
+    label: "+3 HR",
+    rainfallMmHr: 101,
+    runoffM3s: 265.4,
+    drainageStressPct: 119,
+    maxFloodDepthM: 0.94,
+    inundatedAreaHa: 278.4,
+    surchargedNodes: 22,
+    overloadedEdges: 29
+  }
+];
+
+export interface ScenarioImpactRow {
+  zoneId: string;
+  zoneName: string;
+  subCatchment: string;
+  elevM: number;
+  simulatedDepthNow: number;
+  simulatedDepthPlus1: number;
+  simulatedDepthPlus2: number;
+  simulatedDepthPlus3: number;
+  peakRisk: string;
+  keyBottleneck: string;
+  transitImpact: string;
+}
+
+export const SCENARIO_IMPACT_DATA: ScenarioImpactRow[] = [
+  {
+    zoneId: "FZ-01",
+    zoneName: "Anil Nagar Basin",
+    subCatchment: "Central Bharalu Bowl",
+    elevM: 48.4,
+    simulatedDepthNow: 0.18,
+    simulatedDepthPlus1: 0.32,
+    simulatedDepthPlus2: 0.61,
+    simulatedDepthPlus3: 0.94,
+    peakRisk: "Critical",
+    keyBottleneck: "Bharalu backwater + Sump N-012 surcharge",
+    transitImpact: "Impassable for light vehicles from +1 HR; complete closure at +2 HR"
+  },
+  {
+    zoneId: "FZ-02",
+    zoneName: "GS Road (Bhangagarh)",
+    subCatchment: "Medical Corridor / Narakasur Slope",
+    elevM: 49.5,
+    simulatedDepthNow: 0.12,
+    simulatedDepthPlus1: 0.28,
+    simulatedDepthPlus2: 0.54,
+    simulatedDepthPlus3: 0.82,
+    peakRisk: "Critical",
+    keyBottleneck: "Trunk Conduit D-027 flow > 138% capacity",
+    transitImpact: "Severe traffic disruption; hospital access diversion required at +2 HR"
+  },
+  {
+    zoneId: "FZ-03",
+    zoneName: "Zoo Road Tiniali",
+    subCatchment: "RG Baruah / Geetanagar Merge",
+    elevM: 50.8,
+    simulatedDepthNow: 0.10,
+    simulatedDepthPlus1: 0.25,
+    simulatedDepthPlus2: 0.49,
+    simulatedDepthPlus3: 0.74,
+    peakRisk: "Critical",
+    keyBottleneck: "Tri-junction confluence N-016 capacity exceeded",
+    transitImpact: "Lane reduction from +1 HR; impassable for low-clearance vehicles at +2 HR"
+  },
+  {
+    zoneId: "FZ-04",
+    zoneName: "Rukminigaon Lowlands",
+    subCatchment: "Down Town Depression",
+    elevM: 48.9,
+    simulatedDepthNow: 0.15,
+    simulatedDepthPlus1: 0.31,
+    simulatedDepthPlus2: 0.58,
+    simulatedDepthPlus3: 0.88,
+    peakRisk: "Critical",
+    keyBottleneck: "Culvert D-033 structural bottleneck",
+    transitImpact: "GS Road southern artery blocked; diversion through VIP Road advised"
+  },
+  {
+    zoneId: "FZ-05",
+    zoneName: "Hatigaon - Bhetapara Link",
+    subCatchment: "Mora Bharalu Tributary",
+    elevM: 50.1,
+    simulatedDepthNow: 0.08,
+    simulatedDepthPlus1: 0.22,
+    simulatedDepthPlus2: 0.44,
+    simulatedDepthPlus3: 0.69,
+    peakRisk: "Critical",
+    keyBottleneck: "Open earthen drain overflow into residential street",
+    transitImpact: "Slow residential transit; local bus routes suspended at +2 HR"
+  },
+  {
+    zoneId: "FZ-06",
+    zoneName: "Bharalumukh Confluence",
+    subCatchment: "Lower River Outfall Sluice",
+    elevM: 49.1,
+    simulatedDepthNow: 0.11,
+    simulatedDepthPlus1: 0.24,
+    simulatedDepthPlus2: 0.46,
+    simulatedDepthPlus3: 0.72,
+    peakRisk: "Critical",
+    keyBottleneck: "Brahmaputra high river stage gate throttling",
+    transitImpact: "Riverfront peripheral road slowed; local diversions in effect"
+  },
+  {
+    zoneId: "FZ-07",
+    zoneName: "Ulubari - Lachit Nagar Pocket",
+    subCatchment: "Central Residential Corridor",
+    elevM: 49.8,
+    simulatedDepthNow: 0.09,
+    simulatedDepthPlus1: 0.20,
+    simulatedDepthPlus2: 0.41,
+    simulatedDepthPlus3: 0.65,
+    peakRisk: "Critical",
+    keyBottleneck: "Tertiary feeder D-013 backflow",
+    transitImpact: "Internal roads waterlogged; arterial GS Road border caution"
+  },
+  {
+    zoneId: "FZ-08",
+    zoneName: "Boragaon Wetland Fringe",
+    subCatchment: "Western Deepor Buffer",
+    elevM: 49.5,
+    simulatedDepthNow: 0.06,
+    simulatedDepthPlus1: 0.16,
+    simulatedDepthPlus2: 0.35,
+    simulatedDepthPlus3: 0.58,
+    peakRisk: "High",
+    keyBottleneck: "Highway culvert D-048 constriction",
+    transitImpact: "Passable with caution; peripheral highway lanes clear"
+  }
+];
