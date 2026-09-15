@@ -13,46 +13,53 @@ export const LayerControls: React.FC = () => {
     activeColor: string;
   }[] = [
     {
+      key: 'floodRisk',
+      label: 'Flood Risk',
+      count: 'Critical Basins',
+      icon: <Layers className="w-3.5 h-3.5" />,
+      activeColor: 'bg-amber-600/30 border-amber-500/60 text-amber-300'
+    },
+    {
       key: 'floodDepth',
       label: 'Flood Depth',
-      count: '8 Zones',
+      count: '9 Zones',
       icon: <Droplets className="w-3.5 h-3.5" />,
       activeColor: 'bg-blue-600/30 border-blue-500/60 text-blue-300'
     },
     {
       key: 'drainageNetwork',
-      label: 'Drainage Conduits',
-      count: '48 Edges',
+      label: 'Drainage Network',
+      count: '48 Conduits',
       icon: <GitBranch className="w-3.5 h-3.5" />,
       activeColor: 'bg-cyan-600/30 border-cyan-500/60 text-cyan-300'
     },
     {
-      key: 'drainageNodes',
-      label: 'Drainage Nodes',
-      count: '36 Nodes',
+      key: 'drainageStress',
+      label: 'Drainage Stress',
+      count: 'Telemetry Load',
       icon: <MapPin className="w-3.5 h-3.5" />,
-      activeColor: 'bg-emerald-600/30 border-emerald-500/60 text-emerald-300'
+      activeColor: 'bg-rose-600/30 border-rose-500/60 text-rose-300'
     },
     {
-      key: 'naturalDrainage',
-      label: 'Natural Drainage',
-      count: '5 Waterways',
+      key: 'roadExposure',
+      label: 'Road Exposure',
+      count: '10 Arterials',
+      icon: <Car className="w-3.5 h-3.5" />,
+      activeColor: 'bg-orange-600/30 border-orange-500/60 text-orange-300'
+    },
+    {
+      key: 'waterBodies',
+      label: 'Water Bodies',
+      count: 'Rivers & Beels',
       icon: <Waves className="w-3.5 h-3.5" />,
       activeColor: 'bg-sky-600/30 border-sky-500/60 text-sky-300'
     },
     {
-      key: 'terrain',
-      label: 'Terrain / DEM',
-      count: 'Elevation Contours',
-      icon: <Mountain className="w-3.5 h-3.5" />,
-      activeColor: 'bg-amber-600/30 border-amber-500/60 text-amber-300'
-    },
-    {
-      key: 'roadRisk',
-      label: 'Road Risk',
-      count: '7 Arterials',
+      key: 'roads',
+      label: 'Roads',
+      count: 'Base Grid',
       icon: <Car className="w-3.5 h-3.5" />,
-      activeColor: 'bg-rose-600/30 border-rose-500/60 text-rose-300'
+      activeColor: 'bg-slate-600/30 border-slate-500/60 text-slate-300'
     },
   ];
 

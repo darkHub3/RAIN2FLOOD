@@ -119,5 +119,53 @@ export const ROAD_SEGMENTS: RoadSegment[] = [
       "+2HR": { status: "impassable", waterDepthM: 0.48, risk: "high" },
       "+3HR": { status: "impassable", waterDepthM: 0.72, risk: "critical" }
     }
+  },
+  {
+    id: "RD-08",
+    name: "Rukminigaon Road (Down Town Link)",
+    path: [
+      [26.1395, 91.7950],
+      [26.1370, 91.7985],
+      [26.1350, 91.8020],
+      [26.1330, 91.8055]
+    ],
+    timesteps: {
+      NOW: { status: "caution", waterDepthM: 0.18, risk: "moderate" },
+      "+1HR": { status: "impassable", waterDepthM: 0.38, risk: "high" },
+      "+2HR": { status: "impassable", waterDepthM: 0.65, risk: "critical" },
+      "+3HR": { status: "impassable", waterDepthM: 0.95, risk: "critical" }
+    }
+  },
+  {
+    id: "RD-09",
+    name: "Jalukbari Road (AT Road - Maligaon Corridor)",
+    path: [
+      [26.1510, 91.6885],
+      [26.1555, 91.6975],
+      [26.1590, 91.7080],
+      [26.1620, 91.7160]
+    ],
+    timesteps: {
+      NOW: { status: "clear", waterDepthM: 0.04, risk: "low" },
+      "+1HR": { status: "clear", waterDepthM: 0.10, risk: "low" },
+      "+2HR": { status: "caution", waterDepthM: 0.22, risk: "moderate" },
+      "+3HR": { status: "caution", waterDepthM: 0.35, risk: "high" }
+    }
+  },
+  {
+    id: "RD-10",
+    name: "Khanapara Arterial Road (Meghalaya Gateway)",
+    path: [
+      [26.1320, 91.8110],
+      [26.1260, 91.8180],
+      [26.1210, 91.8225],
+      [26.1150, 91.8260]
+    ],
+    timesteps: {
+      NOW: { status: "clear", waterDepthM: 0.05, risk: "low" },
+      "+1HR": { status: "caution", waterDepthM: 0.16, risk: "moderate" },
+      "+2HR": { status: "caution", waterDepthM: 0.28, risk: "high" },
+      "+3HR": { status: "impassable", waterDepthM: 0.46, risk: "critical" }
+    }
   }
 ];

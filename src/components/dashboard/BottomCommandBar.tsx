@@ -138,63 +138,63 @@ export const BottomCommandBar: React.FC = () => {
           <div>
             <div className="text-[10px] text-slate-500 uppercase tracking-wider">RAINFALL</div>
             <div className="text-base font-bold text-white mt-0.5">
-              {current.rainfallIntensityMmHr} <span className="text-xs font-normal text-slate-400">mm/hr</span>
+              {current.rainfallIntensityMmHr.toFixed(1)} <span className="text-xs font-normal text-slate-400">mm/hr</span>
             </div>
           </div>
-          <div className="p-1 rounded bg-blue-500/10 text-cyan-400">
+          <div className="p-1.5 rounded bg-blue-500/10 text-cyan-400">
             <CloudRain className="w-4 h-4" />
           </div>
         </div>
 
-        {/* KPI 2: MAX FLOOD DEPTH */}
+        {/* KPI 2: PEAK DEPTH */}
         <div className="bg-[#0f172a] border border-[#1e293b] rounded p-2 flex items-center justify-between">
           <div>
-            <div className="text-[10px] text-slate-500 uppercase tracking-wider">MAX FLOOD DEPTH</div>
-            <div className="text-base font-bold text-white mt-0.5">
+            <div className="text-[10px] text-slate-500 uppercase tracking-wider">PEAK DEPTH</div>
+            <div className="text-base font-bold text-amber-400 mt-0.5">
               {current.maxFloodDepthM.toFixed(2)} <span className="text-xs font-normal text-slate-400">m</span>
             </div>
           </div>
-          <div className="p-1 rounded bg-amber-500/10 text-amber-400">
+          <div className="p-1.5 rounded bg-amber-500/10 text-amber-400">
             <Droplets className="w-4 h-4" />
           </div>
         </div>
 
-        {/* KPI 3: DRAINAGE LOAD */}
+        {/* KPI 3: DRAINAGE UTILIZATION */}
         <div className="bg-[#0f172a] border border-[#1e293b] rounded p-2 flex items-center justify-between">
           <div>
-            <div className="text-[10px] text-slate-500 uppercase tracking-wider">DRAINAGE LOAD</div>
-            <div className="text-base font-bold text-white mt-0.5">
+            <div className="text-[10px] text-slate-500 uppercase tracking-wider">DRAINAGE UTILIZATION</div>
+            <div className={`text-base font-bold mt-0.5 ${current.networkUtilizationPct >= 100 ? 'text-rose-400' : 'text-cyan-400'}`}>
               {current.networkUtilizationPct} <span className="text-xs font-normal text-slate-400">%</span>
             </div>
           </div>
-          <div className="p-1 rounded bg-cyan-500/10 text-cyan-400">
+          <div className="p-1.5 rounded bg-cyan-500/10 text-cyan-400">
             <Layers className="w-4 h-4" />
           </div>
         </div>
 
-        {/* KPI 4: CRITICAL ZONES */}
+        {/* KPI 4: AFFECTED ROADS */}
         <div className="bg-[#0f172a] border border-[#1e293b] rounded p-2 flex items-center justify-between">
           <div>
-            <div className="text-[10px] text-slate-500 uppercase tracking-wider">CRITICAL ZONES</div>
-            <div className="text-base font-bold text-red-400 mt-0.5">
-              {current.highRiskZonesCount} <span className="text-xs font-normal text-slate-400">zones</span>
+            <div className="text-[10px] text-slate-500 uppercase tracking-wider">AFFECTED ROADS</div>
+            <div className="text-base font-bold text-orange-400 mt-0.5">
+              {activeTimeStep === 'NOW' ? '1' : activeTimeStep === '+1HR' ? '3' : activeTimeStep === '+2HR' ? '4' : '5'} <span className="text-xs font-normal text-slate-400">/ 5</span>
             </div>
           </div>
-          <div className="p-1 rounded bg-red-500/10 text-red-400">
-            <AlertTriangle className="w-4 h-4" />
+          <div className="p-1.5 rounded bg-orange-500/10 text-orange-400">
+            <MapPin className="w-4 h-4" />
           </div>
         </div>
 
-        {/* KPI 5: FLOOD EXTENT */}
+        {/* KPI 5: HIGH-RISK ZONES */}
         <div className="bg-[#0f172a] border border-[#1e293b] rounded p-2 flex items-center justify-between col-span-2 sm:col-span-1">
           <div>
-            <div className="text-[10px] text-slate-500 uppercase tracking-wider">FLOOD EXTENT</div>
-            <div className="text-sm font-bold text-cyan-300 mt-0.5">
-              SIMULATED <span className="text-[10px] text-slate-400 font-normal">PILOT</span>
+            <div className="text-[10px] text-slate-500 uppercase tracking-wider">HIGH-RISK ZONES</div>
+            <div className="text-base font-bold text-rose-400 mt-0.5">
+              {current.highRiskZonesCount} <span className="text-xs font-normal text-slate-400">zones</span>
             </div>
           </div>
-          <div className="p-1 rounded bg-emerald-500/10 text-emerald-400">
-            <MapPin className="w-4 h-4" />
+          <div className="p-1.5 rounded bg-rose-500/10 text-rose-400">
+            <AlertTriangle className="w-4 h-4" />
           </div>
         </div>
       </div>

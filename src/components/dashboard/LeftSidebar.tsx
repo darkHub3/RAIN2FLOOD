@@ -11,7 +11,10 @@ import {
   Globe,
   CheckSquare,
   Square,
-  Info
+  Info,
+  AlertTriangle,
+  Activity,
+  Navigation2
 } from 'lucide-react';
 
 export const LeftSidebar: React.FC = () => {
@@ -21,43 +24,49 @@ export const LeftSidebar: React.FC = () => {
     key: keyof ActiveLayers;
     label: string;
     icon: React.ReactNode;
-    activeColor: string;
+    color: string;
   }[] = [
+    {
+      key: 'floodRisk',
+      label: 'Flood Risk',
+      icon: <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />,
+      color: 'text-amber-400',
+    },
     {
       key: 'floodDepth',
       label: 'Flood Depth',
-      icon: <Droplets className="w-3.5 h-3.5 text-blue-400" />,
-      activeColor: 'text-blue-400',
+      icon: <Droplets className="w-3.5 h-3.5 text-cyan-400" />,
+      color: 'text-cyan-400',
     },
     {
       key: 'drainageNetwork',
       label: 'Drainage Network',
-      icon: <GitBranch className="w-3.5 h-3.5 text-cyan-400" />,
-      activeColor: 'text-cyan-400',
+      icon: <GitBranch className="w-3.5 h-3.5 text-blue-400" />,
+      color: 'text-blue-400',
     },
     {
-      key: 'drainageNodes',
-      label: 'Drainage Nodes',
-      icon: <MapPin className="w-3.5 h-3.5 text-emerald-400" />,
-      activeColor: 'text-emerald-400',
+      key: 'drainageStress',
+      label: 'Drainage Stress',
+      icon: <Activity className="w-3.5 h-3.5 text-rose-400" />,
+      color: 'text-rose-400',
     },
     {
-      key: 'naturalDrainage',
-      label: 'Natural Drainage',
+      key: 'roadExposure',
+      label: 'Road Exposure',
+      icon: <Car className="w-3.5 h-3.5 text-orange-400" />,
+      color: 'text-orange-400',
+    },
+    {
+      key: 'waterBodies',
+      label: 'Water Bodies',
       icon: <Waves className="w-3.5 h-3.5 text-sky-400" />,
-      activeColor: 'text-sky-400',
+      color: 'text-sky-400',
     },
     {
-      key: 'terrain',
-      label: 'Terrain',
-      icon: <Mountain className="w-3.5 h-3.5 text-amber-400" />,
-      activeColor: 'text-amber-400',
-    },
-    {
-      key: 'roadRisk',
-      label: 'Road Risk',
-      icon: <Car className="w-3.5 h-3.5 text-rose-400" />,
-      activeColor: 'text-rose-400',
+      key: 'roads',
+      label: 'Roads',
+      icon: <Navigation2 className="w-3.5 h-3.5 text-slate-300" />,
+      color: 'text-slate-300',
     },
   ];
 
@@ -68,9 +77,9 @@ export const LeftSidebar: React.FC = () => {
         <div className="flex items-center justify-between border-b border-[#1e293b] pb-1.5">
           <span className="text-[11px] font-bold text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
             <Layers className="w-3.5 h-3.5 text-cyan-400" />
-            Layers
+            GIS Layers
           </span>
-          <span className="text-[10px] text-slate-500">6 Available</span>
+          <span className="text-[10px] text-slate-500">7 Active</span>
         </div>
 
         <div className="space-y-1">
@@ -87,18 +96,23 @@ export const LeftSidebar: React.FC = () => {
                 }`}
               >
                 <div className="flex items-center gap-2">
+                  {isOn ? (
+                    <CheckSquare className="w-3.5 h-3.5 text-cyan-400" />
+                  ) : (
+                    <Square className="w-3.5 h-3.5 text-slate-600" />
+                  )}
                   {layer.icon}
                   <span>{layer.label}</span>
                 </div>
 
                 <span
-                  className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                  className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${
                     isOn
                       ? 'bg-cyan-950 text-cyan-400 border border-cyan-800/80'
                       : 'bg-slate-900 text-slate-600 border border-slate-800'
                   }`}
                 >
-                  {isOn ? '[ON]' : '[OFF]'}
+                  {isOn ? 'ON' : 'OFF'}
                 </span>
               </button>
             );
@@ -106,20 +120,21 @@ export const LeftSidebar: React.FC = () => {
         </div>
       </div>
 
-      {/* SECTION 2: BASE MAP */}
+      {/* SECTION 2: BASE MAP OPTIONS */}
       <div className="space-y-2 pt-1 border-t border-[#1e293b]">
         <div className="flex items-center justify-between">
           <span className="text-[11px] font-bold text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
             <Globe className="w-3.5 h-3.5 text-cyan-400" />
-            Base Map
+            Basemap Options
           </span>
-          <span className="text-[10px] text-slate-500">Cartography</span>
+          <span className="text-[10px] text-slate-500">Guwahati GIS</span>
         </div>
 
-        <div className="grid grid-cols-2 gap-1.5 p-1 bg-[#090e18] rounded border border-[#1e293b]">
+        <div className="grid grid-cols-3 gap-1 p-1 bg-[#090e18] rounded border border-[#1e293b]">
           <button
             onClick={() => setBaseMapMode('dark')}
-            className={`py-1 px-2 rounded text-[11px] font-mono transition-all text-center ${
+            title="CartoDB Dark Matter"
+            className={`py-1.5 px-1 rounded text-[10px] font-mono transition-all text-center leading-tight ${
               baseMapMode === 'dark'
                 ? 'bg-cyan-600 text-white font-bold shadow-sm'
                 : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
@@ -128,8 +143,20 @@ export const LeftSidebar: React.FC = () => {
             Dark GIS
           </button>
           <button
+            onClick={() => setBaseMapMode('osm')}
+            title="OpenStreetMap Standard"
+            className={`py-1.5 px-1 rounded text-[10px] font-mono transition-all text-center leading-tight ${
+              baseMapMode === 'osm'
+                ? 'bg-cyan-600 text-white font-bold shadow-sm'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+            }`}
+          >
+            OSM
+          </button>
+          <button
             onClick={() => setBaseMapMode('satellite')}
-            className={`py-1 px-2 rounded text-[11px] font-mono transition-all text-center ${
+            title="Esri World Imagery"
+            className={`py-1.5 px-1 rounded text-[10px] font-mono transition-all text-center leading-tight ${
               baseMapMode === 'satellite'
                 ? 'bg-cyan-600 text-white font-bold shadow-sm'
                 : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
@@ -150,89 +177,89 @@ export const LeftSidebar: React.FC = () => {
         </div>
 
         {/* Flood Depth */}
-        <div className="space-y-1 bg-[#090e18] p-2 rounded border border-[#1e293b]">
-          <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
-            Flood Depth
+        <div className="space-y-1.5 bg-[#090e18] p-2 rounded border border-[#1e293b]">
+          <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider flex items-center justify-between">
+            <span>Flood Depth</span>
+            <span className="text-[9px] text-slate-500">Simulated</span>
           </div>
           <div className="grid grid-cols-2 gap-1 text-[10px]">
             <div className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-sm bg-blue-500/50 border border-blue-400"></span>
-              <span className="text-slate-300">0–0.15m Low</span>
+              <span className="w-2.5 h-2.5 rounded-sm bg-cyan-400/60 border border-cyan-300"></span>
+              <span className="text-slate-300">&lt; 0.15 m</span>
             </div>
             <div className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-sm bg-amber-500/50 border border-amber-400"></span>
-              <span className="text-slate-300">0.15–0.30m Mod</span>
+              <span className="w-2.5 h-2.5 rounded-sm bg-yellow-400/70 border border-yellow-300"></span>
+              <span className="text-slate-300">0.15–0.30 m</span>
             </div>
             <div className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-sm bg-orange-500/60 border border-orange-400"></span>
-              <span className="text-slate-300">0.30–0.60m High</span>
+              <span className="w-2.5 h-2.5 rounded-sm bg-orange-500/80 border border-orange-400"></span>
+              <span className="text-slate-300">0.30–0.60 m</span>
             </div>
             <div className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-sm bg-red-600/70 border border-red-500"></span>
-              <span className="text-red-400 font-bold">&gt;0.60m Critical</span>
+              <span className="w-2.5 h-2.5 rounded-sm bg-rose-600/90 border border-rose-400"></span>
+              <span className="text-rose-300 font-bold">&gt; 0.60 m</span>
             </div>
           </div>
         </div>
 
         {/* Drainage Status */}
-        <div className="space-y-1 bg-[#090e18] p-2 rounded border border-[#1e293b]">
+        <div className="space-y-1.5 bg-[#090e18] p-2 rounded border border-[#1e293b]">
           <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
             Drainage Status
           </div>
           <div className="grid grid-cols-2 gap-1 text-[10px]">
             <div className="flex items-center gap-1.5">
-              <span className="w-3.5 h-1 bg-cyan-400 rounded"></span>
-              <span className="text-slate-300">&lt;85% Normal</span>
+              <span className="w-3 h-1 bg-cyan-400 rounded"></span>
+              <span className="text-slate-300">Normal</span>
             </div>
             <div className="flex items-center gap-1.5">
-              <span className="w-3.5 h-1 bg-amber-400 rounded"></span>
-              <span className="text-slate-300">85–100% Warn</span>
+              <span className="w-3 h-1 bg-yellow-400 rounded"></span>
+              <span className="text-slate-300">Warning</span>
             </div>
             <div className="flex items-center gap-1.5">
-              <span className="w-3.5 h-1 bg-orange-500 rounded"></span>
-              <span className="text-slate-300">&gt;100% Overload</span>
+              <span className="w-3 h-1 bg-orange-500 rounded"></span>
+              <span className="text-slate-300">Overload</span>
             </div>
             <div className="flex items-center gap-1.5">
-              <span className="w-3.5 h-1 bg-red-500 rounded animate-pulse"></span>
-              <span className="text-red-400 font-bold">&gt;125% Surcharge</span>
+              <span className="w-3 h-1 bg-rose-500 rounded animate-pulse"></span>
+              <span className="text-rose-300 font-bold">Surcharge</span>
             </div>
           </div>
         </div>
 
-        {/* Road Risk */}
-        <div className="space-y-1 bg-[#090e18] p-2 rounded border border-[#1e293b]">
+        {/* Road Exposure */}
+        <div className="space-y-1.5 bg-[#090e18] p-2 rounded border border-[#1e293b]">
           <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
-            Road Risk
+            Road Exposure
           </div>
-          <div className="flex items-center justify-between text-[10px]">
-            <div className="flex items-center gap-1">
-              <span className="w-2 h-2 rounded-full bg-slate-500"></span>
-              <span className="text-slate-400">Clear</span>
+          <div className="space-y-1 text-[10px]">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                <span className="w-3 h-1 bg-slate-500 rounded"></span>
+                <span className="text-slate-400">Clear</span>
+              </div>
+              <span className="text-[9px] text-slate-500">&lt;0.05m</span>
             </div>
-            <div className="flex items-center gap-1">
-              <span className="w-2 h-2 rounded-full bg-amber-400"></span>
-              <span className="text-amber-300">Caution</span>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                <span className="w-3 h-1 bg-yellow-400 rounded"></span>
+                <span className="text-yellow-300">Watch</span>
+              </div>
+              <span className="text-[9px] text-yellow-400/80">0.05–0.25m</span>
             </div>
-            <div className="flex items-center gap-1">
-              <span className="w-2 h-2 rounded-full bg-red-500"></span>
-              <span className="text-red-400 font-bold">Impassable</span>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                <span className="w-3 h-1 bg-orange-500 rounded"></span>
+                <span className="text-orange-300">Flood Risk</span>
+              </div>
+              <span className="text-[9px] text-orange-400/80">0.25–0.50m</span>
             </div>
-          </div>
-        </div>
-
-        {/* Natural Drainage */}
-        <div className="space-y-1 bg-[#090e18] p-2 rounded border border-[#1e293b]">
-          <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
-            Natural Drainage
-          </div>
-          <div className="flex items-center justify-between text-[10px]">
-            <div className="flex items-center gap-1.5">
-              <span className="w-3.5 h-1 bg-sky-400 rounded"></span>
-              <span className="text-slate-300">River / Canal</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-sm bg-sky-500/30 border border-sky-400"></span>
-              <span className="text-slate-300">Wetland Basin</span>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                <span className="w-3 h-1 bg-rose-500 rounded"></span>
+                <span className="text-rose-300 font-bold">High Exposure</span>
+              </div>
+              <span className="text-[9px] text-rose-400 font-bold">&gt;0.50m</span>
             </div>
           </div>
         </div>

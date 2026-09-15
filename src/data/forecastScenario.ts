@@ -16,46 +16,46 @@ export const FORECAST_CHART_SERIES: ChartDataPoint[] = [
   {
     timeStep: "NOW",
     label: "NOW (T+0)",
-    rainfallMmHr: 78,
-    runoffM3s: 142.5,
-    drainageStressPct: 72,
+    rainfallMmHr: 14.5,
+    runoffM3s: 58.5,
+    drainageStressPct: 68,
     maxFloodDepthM: 0.18,
-    inundatedAreaHa: 60.4,
-    surchargedNodes: 4,
-    overloadedEdges: 6
+    inundatedAreaHa: 45.4,
+    surchargedNodes: 1,
+    overloadedEdges: 1
   },
   {
     timeStep: "+1HR",
     label: "+1 HR",
-    rainfallMmHr: 86,
-    runoffM3s: 184.2,
-    drainageStressPct: 87,
+    rainfallMmHr: 42.0,
+    runoffM3s: 146.2,
+    drainageStressPct: 88,
     maxFloodDepthM: 0.32,
-    inundatedAreaHa: 126.9,
-    surchargedNodes: 8,
-    overloadedEdges: 12
+    inundatedAreaHa: 104.8,
+    surchargedNodes: 5,
+    overloadedEdges: 8
   },
   {
     timeStep: "+2HR",
     label: "+2 HR",
-    rainfallMmHr: 94,
-    runoffM3s: 228.0,
-    drainageStressPct: 103,
+    rainfallMmHr: 58.0,
+    runoffM3s: 218.0,
+    drainageStressPct: 114,
     maxFloodDepthM: 0.61,
-    inundatedAreaHa: 203.2,
-    surchargedNodes: 15,
-    overloadedEdges: 21
+    inundatedAreaHa: 186.5,
+    surchargedNodes: 14,
+    overloadedEdges: 18
   },
   {
     timeStep: "+3HR",
     label: "+3 HR",
-    rainfallMmHr: 101,
-    runoffM3s: 265.4,
-    drainageStressPct: 119,
+    rainfallMmHr: 22.0,
+    runoffM3s: 180.4,
+    drainageStressPct: 138,
     maxFloodDepthM: 0.94,
-    inundatedAreaHa: 278.4,
-    surchargedNodes: 22,
-    overloadedEdges: 29
+    inundatedAreaHa: 265.0,
+    surchargedNodes: 21,
+    overloadedEdges: 26
   }
 ];
 

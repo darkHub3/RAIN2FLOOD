@@ -252,7 +252,7 @@ export const FallbackSvgMap: React.FC<SvgMapProps> = ({ showRoutes = false }) =>
         </text>
 
         {/* --- 2. TERRAIN LAYER (DEM Contours & Hills) --- */}
-        {activeLayers.terrain && (
+        {(activeLayers as any).terrain && (
           <g id="terrain-layer" opacity="0.85">
             {TERRAIN_HILLS.map((hill) => {
               const [hx, hy] = projectCoords(hill.center[0], hill.center[1]);
@@ -324,7 +324,7 @@ export const FallbackSvgMap: React.FC<SvgMapProps> = ({ showRoutes = false }) =>
         )}
 
         {/* --- 3. NATURAL DRAINAGE & WETLANDS LAYER --- */}
-        {activeLayers.naturalDrainage && (
+        {activeLayers.waterBodies && (
           <g id="natural-drainage-layer">
             {NATURAL_WATERWAYS.map((nw) => {
               if (nw.polygon) {
@@ -386,7 +386,7 @@ export const FallbackSvgMap: React.FC<SvgMapProps> = ({ showRoutes = false }) =>
         )}
 
         {/* --- 4. ROADS & RISK LAYER --- */}
-        {activeLayers.roadRisk && (
+        {activeLayers.roadExposure && (
           <g id="roads-layer">
             {ROAD_SEGMENTS.map((road) => {
               const rState = road.timesteps[activeTimeStep];
@@ -572,7 +572,7 @@ export const FallbackSvgMap: React.FC<SvgMapProps> = ({ showRoutes = false }) =>
         )}
 
         {/* --- 7. DRAINAGE NODES (INLETS, MANHOLES, OUTFALLS) --- */}
-        {activeLayers.drainageNodes && (
+        {activeLayers.drainageNetwork && (
           <g id="drainage-nodes-layer">
             {DRAINAGE_NODES.map((node) => {
               const nState = node.timesteps[activeTimeStep];

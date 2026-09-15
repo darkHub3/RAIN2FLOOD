@@ -1,23 +1,18 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 import L from 'leaflet';
 import { useSimulation } from '../../context/SimulationContext';
 import { DRAINAGE_NODES } from '../../data/drainageNodes';
 import { DRAINAGE_EDGES } from '../../data/drainageEdges';
 import { FLOOD_ZONES } from '../../data/floodZones';
 import { NATURAL_WATERWAYS } from '../../data/naturalDrainage';
-import { TERRAIN_HILLS, FLOW_ACCUMULATION_VECTORS } from '../../data/terrainData';
 import { ROAD_SEGMENTS } from '../../data/roads';
 import { ROUTE_SCENARIOS } from '../../data/routes';
-import { FallbackSvgMap } from './FallbackSvgMap';
 import {
-  Map as MapIcon,
-  Crosshair,
   ZoomIn,
   ZoomOut,
   RotateCcw,
   ShieldCheck,
-  AlertTriangle,
-  Info
+  Compass
 } from 'lucide-react';
 
 interface GisMapProps {
@@ -30,8 +25,6 @@ export const GisMap: React.FC<GisMapProps> = ({ showRoutes = false }) => {
   const tileLayerRef = useRef<L.TileLayer | null>(null);
   const overlayGroupRef = useRef<L.LayerGroup | null>(null);
 
-  const [hasInitError, setHasInitError] = useState<boolean>(false);
-
   const {
     activeTimeStep,
     activeLayers,
@@ -40,6 +33,8 @@ export const GisMap: React.FC<GisMapProps> = ({ showRoutes = false }) => {
     setSelectedNode,
     selectedEdge,
     setSelectedEdge,
+    selectedRoad,
+    setSelectedRoad,
     selectedRouteId,
   } = useSimulation();
 
@@ -47,10 +42,10 @@ export const GisMap: React.FC<GisMapProps> = ({ showRoutes = false }) => {
 
   // Hotspot locations in Guwahati
   const hotspots: { name: string; lat: number; lng: number; zoom?: number }[] = [
-    { name: 'Anil Nagar', lat: 26.1770, lng: 91.7710, zoom: 15 },
-    { name: 'Bhangagarh', lat: 26.1585, lng: 91.7685, zoom: 15 },
-    { name: 'Zoo Road', lat: 26.1645, lng: 91.7820, zoom: 14 },
-    { name: 'Bharalumukh', lat: 26.1758, lng: 91.7285, zoom: 14 },
+    { name: 'Anil Nagar / Nabin Nagar', lat: 26.1755, lng: 91.7725, zoom: 15 },
+    { name: 'Bhangagarh', lat: 26.1575, lng: 91.7710, zoom: 15 },
+    { name: 'Zoo Road', lat: 26.1650, lng: 91.7830, zoom: 15 },
+    { name: 'Bharalumukh', lat: 26.1735, lng: 91.7265, zoom: 14 },
     { name: 'Silsako Beel', lat: 26.1530, lng: 91.8150, zoom: 14 },
     { name: 'Deepor Beel', lat: 26.1280, lng: 91.6780, zoom: 13 },
     { name: 'Dispur', lat: 26.1420, lng: 91.7920, zoom: 14 },
@@ -58,29 +53,29 @@ export const GisMap: React.FC<GisMapProps> = ({ showRoutes = false }) => {
     { name: 'Jalukbari', lat: 26.1510, lng: 91.6885, zoom: 14 },
   ];
 
-  // Color helpers matching the required palette
-  const getFloodColors = (depthM: number): { fill: string; stroke: string; opacity: number } => {
+  // Depth-based color ramp matching the exact user specifications
+  const getFloodColors = (depthM: number) => {
     if (depthM > 0.60) {
-      // Critical: red/magenta
-      return { fill: '#ef4444', stroke: '#dc2626', opacity: 0.65 };
+      // Critical depth: Red / Magenta
+      return { fill: '#ef4444', stroke: '#dc2626', opacity: 0.65, label: 'Critical (>0.60m)' };
     }
     if (depthM > 0.30) {
-      // High: orange
-      return { fill: '#f97316', stroke: '#ea580c', opacity: 0.55 };
+      // High depth: Orange
+      return { fill: '#f97316', stroke: '#ea580c', opacity: 0.55, label: 'High (0.30–0.60m)' };
     }
     if (depthM > 0.15) {
-      // Moderate: yellow
-      return { fill: '#eab308', stroke: '#ca8a04', opacity: 0.45 };
+      // Moderate depth: Yellow
+      return { fill: '#eab308', stroke: '#ca8a04', opacity: 0.45, label: 'Moderate (0.15–0.30m)' };
     }
-    // Low: blue/cyan
-    return { fill: '#06b6d4', stroke: '#0891b2', opacity: 0.40 };
+    // Low depth: Light Blue / Cyan
+    return { fill: '#06b6d4', stroke: '#0891b2', opacity: 0.38, label: 'Low (<0.15m)' };
   };
 
   const getEdgeColor = (status: string): string => {
     switch (status) {
       case 'critical': return '#ef4444';
       case 'overloaded': return '#f97316';
-      case 'warning': return '#f59e0b';
+      case 'warning': return '#eab308';
       default: return '#06b6d4';
     }
   };
@@ -89,32 +84,35 @@ export const GisMap: React.FC<GisMapProps> = ({ showRoutes = false }) => {
     switch (status) {
       case 'critical': return '#dc2626';
       case 'surcharged': return '#ef4444';
-      case 'warning': return '#f59e0b';
+      case 'warning': return '#eab308';
       default: return '#10b981';
     }
   };
 
-  // 1. Initialize Leaflet map instance
+  // 1. Initialize Leaflet map instance (React 18 StrictMode resistant)
   useEffect(() => {
     if (!mapContainerRef.current) return;
 
-    try {
-      if (!mapInstanceRef.current) {
-        const map = L.map(mapContainerRef.current, {
-          center: [26.1540, 91.7650], // Centered on Guwahati pilot corridor
-          zoom: 13,
-          minZoom: 11,
-          maxZoom: 18,
-          zoomControl: false, // Custom zoom buttons
-        });
+    if ((mapContainerRef.current as any)._leaflet_id) {
+      (mapContainerRef.current as any)._leaflet_id = null;
+    }
 
-        const overlayGroup = L.layerGroup().addTo(map);
-        overlayGroupRef.current = overlayGroup;
-        mapInstanceRef.current = map;
-      }
-    } catch (err) {
-      console.warn('Leaflet initialization warning:', err);
-      setHasInitError(true);
+    if (!mapInstanceRef.current) {
+      const map = L.map(mapContainerRef.current, {
+        center: [26.1540, 91.7650], // Centered on Guwahati pilot corridor
+        zoom: 13,
+        minZoom: 10,
+        maxZoom: 18,
+        zoomControl: false,
+      });
+
+      const overlayGroup = L.layerGroup().addTo(map);
+      overlayGroupRef.current = overlayGroup;
+      mapInstanceRef.current = map;
+
+      setTimeout(() => {
+        map.invalidateSize();
+      }, 150);
     }
 
     return () => {
@@ -122,10 +120,13 @@ export const GisMap: React.FC<GisMapProps> = ({ showRoutes = false }) => {
         mapInstanceRef.current.remove();
         mapInstanceRef.current = null;
       }
+      if (mapContainerRef.current) {
+        (mapContainerRef.current as any)._leaflet_id = null;
+      }
     };
   }, []);
 
-  // 2. Update basemap tile layer based on baseMapMode ('dark' vs 'satellite')
+  // 2. Basemap tile switcher: CartoDB Dark Matter | OSM | Esri World Imagery
   useEffect(() => {
     const map = mapInstanceRef.current;
     if (!map) return;
@@ -139,11 +140,15 @@ export const GisMap: React.FC<GisMapProps> = ({ showRoutes = false }) => {
     let attribution = '';
 
     if (baseMapMode === 'satellite') {
-      // High-resolution Esri World Imagery showing actual terrain, river, hills and neighborhoods
+      // High-resolution Esri World Imagery showing actual Guwahati terrain, Brahmaputra river, hills
       url = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
-      attribution = '&copy; Esri &mdash; Guwahati Satellite Basemap';
+      attribution = 'Tiles &copy; Esri &mdash; Guwahati Satellite Basemap';
+    } else if (baseMapMode === 'osm') {
+      // Real OpenStreetMap standard tiles
+      url = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+      attribution = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
     } else {
-      // Real OpenStreetMap/CartoDB Dark Matter vector basemap
+      // CartoDB Dark Matter (Professional dark GIS theme)
       url = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
       attribution = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>';
     }
@@ -157,7 +162,7 @@ export const GisMap: React.FC<GisMapProps> = ({ showRoutes = false }) => {
     tileLayerRef.current = tileLayer;
   }, [baseMapMode]);
 
-  // 3. Render Simulated Overlays on top of the real basemap
+  // 3. Render all 7 Overlays on top of the real Guwahati basemap
   useEffect(() => {
     const map = mapInstanceRef.current;
     const overlayGroup = overlayGroupRef.current;
@@ -165,20 +170,19 @@ export const GisMap: React.FC<GisMapProps> = ({ showRoutes = false }) => {
 
     overlayGroup.clearLayers();
 
-    // A. NATURAL DRAINAGE & WETLANDS (Brahmaputra, Bharalu, Mora Bharalu, Deepor Beel, Silsako Beel)
-    if (activeLayers.naturalDrainage) {
+    // A. WATER BODIES (Brahmaputra, Bharalu, Mora Bharalu, Silsako Beel, Deepor Beel, Basistha)
+    if (activeLayers.waterBodies) {
       NATURAL_WATERWAYS.forEach((nw) => {
         if (nw.polygon) {
           const latLngs: [number, number][] = nw.polygon.map((c) => [c[0], c[1]]);
           const poly = L.polygon(latLngs, {
             color: '#38bdf8',
             weight: 1.5,
-            dashArray: '4, 2',
             fillColor: '#0284c7',
-            fillOpacity: 0.28,
+            fillOpacity: 0.35,
           });
           poly.bindTooltip(
-            `<div class="font-mono text-xs"><strong>${nw.name}</strong><br/><span class="text-slate-400 text-[10px]">${nw.capacityRole}</span></div>`,
+            `<div class="font-mono text-xs"><strong class="text-sky-300">${nw.name}</strong><br/><span class="text-slate-400 text-[10px]">${nw.capacityRole}</span></div>`,
             { sticky: true, className: 'leaflet-dark-tooltip' }
           );
           overlayGroup.addLayer(poly);
@@ -190,7 +194,7 @@ export const GisMap: React.FC<GisMapProps> = ({ showRoutes = false }) => {
             opacity: 0.85,
           });
           line.bindTooltip(
-            `<div class="font-mono text-xs"><strong>${nw.name}</strong><br/><span class="text-slate-400 text-[10px]">${nw.notes}</span></div>`,
+            `<div class="font-mono text-xs"><strong class="text-sky-300">${nw.name}</strong><br/><span class="text-slate-400 text-[10px]">${nw.notes}</span></div>`,
             { sticky: true, className: 'leaflet-dark-tooltip' }
           );
           overlayGroup.addLayer(line);
@@ -198,68 +202,172 @@ export const GisMap: React.FC<GisMapProps> = ({ showRoutes = false }) => {
       });
     }
 
-    // B. SIMULATED FLOOD DEPTH POLYGONS (Geographically aligned over low-lying Guwahati basins)
-    if (activeLayers.floodDepth) {
+    // B. BASE ROADS (When 'roads' layer is active, ensures roads are clearly visible)
+    if (activeLayers.roads) {
+      ROAD_SEGMENTS.forEach((road) => {
+        const latLngs: [number, number][] = road.path.map((c) => [c[0], c[1]]);
+        const baseRoadLine = L.polyline(latLngs, {
+          color: '#475569',
+          weight: 2.5,
+          opacity: 0.65,
+        });
+        baseRoadLine.bindTooltip(
+          `<div class="font-mono text-xs font-bold text-slate-200">${road.name}</div>`,
+          { sticky: true, className: 'leaflet-dark-tooltip' }
+        );
+        overlayGroup.addLayer(baseRoadLine);
+      });
+    }
+
+    // C. SIMULATED FLOOD DEPTH & FLOOD RISK OVERLAY
+    if (activeLayers.floodDepth || activeLayers.floodRisk) {
       FLOOD_ZONES.forEach((zone) => {
         const zState = zone.timesteps[activeTimeStep];
         const colors = getFloodColors(zState.depthM);
         const latLngs: [number, number][] = zone.polygon.map((c) => [c[0], c[1]]);
 
+        const isRiskHighlighted = activeLayers.floodRisk && (zState.risk === 'high' || zState.risk === 'critical');
+
         const floodPoly = L.polygon(latLngs, {
-          color: colors.stroke,
-          weight: zState.depthM > 0.6 ? 2.5 : 1.5,
+          color: isRiskHighlighted ? '#ef4444' : colors.stroke,
+          weight: isRiskHighlighted ? 2.5 : 1.5,
           fillColor: colors.fill,
           fillOpacity: colors.opacity,
-          dashArray: zState.depthM > 0.6 ? '5, 3' : undefined,
+          dashArray: isRiskHighlighted ? '6, 3' : undefined,
         });
 
+        // Hover tooltip
         floodPoly.bindTooltip(
           `<div class="font-mono text-xs text-slate-100 p-1">
             <div class="font-bold text-cyan-300">${zone.name}</div>
-            <div class="text-[10px] text-slate-300">Simulated Depth: <strong class="text-white">${zState.depthM.toFixed(2)} m</strong></div>
+            <div class="text-[10px] text-slate-300 mt-0.5">Simulated Depth: <strong class="text-white">${zState.depthM.toFixed(2)} m</strong></div>
             <div class="text-[10px] uppercase font-bold" style="color:${colors.stroke}">Risk: ${zState.risk.toUpperCase()}</div>
             <div class="text-[9px] text-slate-400 mt-0.5">Bottleneck: ${zState.primaryBottleneck}</div>
-            <div class="text-[8px] text-amber-300 mt-1 uppercase">● Simulated Flood Scenario</div>
           </div>`,
           { sticky: true, className: 'leaflet-dark-tooltip' }
+        );
+
+        // Click popup
+        floodPoly.bindPopup(
+          `<div class="font-mono text-xs text-slate-100 p-1 min-w-[220px]">
+            <div class="flex items-center justify-between border-b border-slate-700 pb-1 mb-1.5">
+              <span class="font-bold text-cyan-300 text-[12px]">${zone.name}</span>
+              <span class="text-[9px] px-1.5 py-0.5 rounded font-bold uppercase" style="background:${colors.fill}33; color:${colors.stroke}; border:1px solid ${colors.stroke}88;">
+                ${zState.risk}
+              </span>
+            </div>
+            <div class="space-y-1 text-[11px]">
+              <div class="flex justify-between text-slate-300">
+                <span>Simulated Depth:</span>
+                <strong class="text-white">${zState.depthM.toFixed(2)} m</strong>
+              </div>
+              <div class="flex justify-between text-slate-300">
+                <span>Affected Area:</span>
+                <strong class="text-slate-200">${zState.affectedAreaHa} ha</strong>
+              </div>
+              <div class="flex justify-between text-slate-300">
+                <span>Primary Bottleneck:</span>
+                <strong class="text-amber-300 text-[10px] text-right ml-2">${zState.primaryBottleneck}</strong>
+              </div>
+            </div>
+            <div class="mt-2 text-[8px] text-amber-300 uppercase border-t border-slate-800 pt-1">
+              ● Simulated Flood Zone Scenario (${activeTimeStep})
+            </div>
+          </div>`
         );
 
         overlayGroup.addLayer(floodPoly);
       });
     }
 
-    // C. REAL ROAD NETWORK RISK OVERLAY
-    if (activeLayers.roadRisk) {
+    // D. ROAD EXPOSURE OVERLAY (Watch=Yellow, Flood Risk=Orange, High Exposure=Red)
+    if (activeLayers.roadExposure) {
       ROAD_SEGMENTS.forEach((road) => {
         const rState = road.timesteps[activeTimeStep];
         const isImpassable = rState.status === 'impassable';
         const isCaution = rState.status === 'caution';
 
-        const color = isImpassable ? '#ef4444' : isCaution ? '#f59e0b' : '#334155';
+        // Exposure mapping: Watch (Yellow), Flood Risk (Orange), High Exposure (Red)
+        let exposureColor = '#64748b'; // Clear
+        let exposureText = 'Clear';
+        let weight = 3;
+        let dashArray: string | undefined = undefined;
+
+        if (rState.waterDepthM > 0.50 || isImpassable) {
+          exposureColor = '#ef4444'; // Red (High Exposure)
+          exposureText = 'High Exposure';
+          weight = 5.5;
+          dashArray = '8, 5';
+        } else if (rState.waterDepthM >= 0.25) {
+          exposureColor = '#f97316'; // Orange (Flood Risk)
+          exposureText = 'Flood Risk';
+          weight = 4.5;
+        } else if (rState.waterDepthM >= 0.05 || isCaution) {
+          exposureColor = '#eab308'; // Yellow (Watch)
+          exposureText = 'Watch';
+          weight = 4;
+        }
+
+        const isSelected = selectedRoad?.id === road.id;
         const latLngs: [number, number][] = road.path.map((c) => [c[0], c[1]]);
 
         const roadLine = L.polyline(latLngs, {
-          color,
-          weight: isImpassable ? 5 : isCaution ? 4 : 2.5,
-          opacity: 0.9,
-          dashArray: isImpassable ? '8, 6' : undefined,
+          color: isSelected ? '#ffffff' : exposureColor,
+          weight: isSelected ? weight + 2 : weight,
+          opacity: 0.95,
+          dashArray,
         });
 
+        roadLine.on('click', () => {
+          setSelectedRoad(road);
+        });
+
+        // Hover Tooltip
         roadLine.bindTooltip(
           `<div class="font-mono text-xs">
             <strong class="text-white">${road.name}</strong><br/>
-            <span>Status: <strong class="${isImpassable ? 'text-red-400' : isCaution ? 'text-amber-400' : 'text-emerald-400'}">${rState.status.toUpperCase()}</strong></span><br/>
-            <span>Water Depth: ${rState.waterDepthM} m</span>
+            <span>Exposure: <strong style="color:${exposureColor}">${exposureText.toUpperCase()}</strong></span><br/>
+            <span>Water Depth: <strong class="text-white">${rState.waterDepthM.toFixed(2)} m</strong></span>
           </div>`,
           { sticky: true, className: 'leaflet-dark-tooltip' }
+        );
+
+        // Click Popup (Simulated Road Flood Exposure)
+        roadLine.bindPopup(
+          `<div class="font-mono text-xs text-slate-100 p-1 min-w-[220px]">
+            <div class="flex items-center justify-between border-b border-slate-700 pb-1 mb-1.5">
+              <span class="font-bold text-white">${road.name}</span>
+              <span class="text-[9px] px-1.5 py-0.5 rounded font-bold uppercase" style="background:${exposureColor}25; color:${exposureColor}; border:1px solid ${exposureColor}88;">
+                ${exposureText}
+              </span>
+            </div>
+            <div class="space-y-1 text-[11px]">
+              <div class="flex justify-between text-slate-300">
+                <span>Simulated Water Depth:</span>
+                <strong class="text-white">${rState.waterDepthM.toFixed(2)} m</strong>
+              </div>
+              <div class="flex justify-between text-slate-300">
+                <span>Exposure Status:</span>
+                <strong style="color:${exposureColor}">${exposureText}</strong>
+              </div>
+              <div class="flex justify-between text-slate-300">
+                <span>Passability:</span>
+                <strong class="${isImpassable ? 'text-red-400' : isCaution ? 'text-amber-400' : 'text-emerald-400'}">${rState.status.toUpperCase()}</strong>
+              </div>
+            </div>
+            <div class="mt-2 text-[8px] text-amber-300 uppercase border-t border-slate-800 pt-1">
+              ● Simulated Road Flood Exposure (${activeTimeStep})
+            </div>
+          </div>`
         );
 
         overlayGroup.addLayer(roadLine);
       });
     }
 
-    // D. DRAINAGE CONDUITS / EDGES (Spatially connecting actual pilot nodes)
+    // E. DRAINAGE NETWORK (Conduits & Nodes with stress colors & click telemetry)
     if (activeLayers.drainageNetwork) {
+      // Conduits / Edges
       DRAINAGE_EDGES.forEach((edge) => {
         const fromNode = DRAINAGE_NODES.find((n) => n.id === edge.fromNode);
         const toNode = DRAINAGE_NODES.find((n) => n.id === edge.toNode);
@@ -268,6 +376,7 @@ export const GisMap: React.FC<GisMapProps> = ({ showRoutes = false }) => {
         const eState = edge.timesteps[activeTimeStep];
         const color = getEdgeColor(eState.status);
         const isOverloaded = eState.flowM3s > edge.designCapacityM3s;
+        const isStressActive = activeLayers.drainageStress && isOverloaded;
         const isSelected = selectedEdge?.id === edge.id;
 
         const edgeLine = L.polyline(
@@ -277,7 +386,7 @@ export const GisMap: React.FC<GisMapProps> = ({ showRoutes = false }) => {
           ],
           {
             color: isSelected ? '#ffffff' : color,
-            weight: isSelected ? 5 : isOverloaded ? 4 : 2.5,
+            weight: isSelected ? 5 : isStressActive ? 4.5 : isOverloaded ? 3.5 : 2.5,
             opacity: 0.95,
             dashArray: isOverloaded ? '6, 4' : undefined,
           }
@@ -291,19 +400,48 @@ export const GisMap: React.FC<GisMapProps> = ({ showRoutes = false }) => {
           `<div class="font-mono text-xs text-slate-100 p-1">
             <div class="font-bold text-cyan-300">Conduit ${edge.id}: ${edge.name}</div>
             <div class="text-[10px]">Flow: <strong>${eState.flowM3s.toFixed(1)} m³/s</strong> | Cap: <strong>${edge.designCapacityM3s.toFixed(1)} m³/s</strong></div>
-            <div class="text-[10px] font-bold ${isOverloaded ? 'text-red-400' : 'text-emerald-400'}">Utilization: ${eState.utilizationPct}% (${eState.status.toUpperCase()})</div>
-            <div class="text-[9px] text-slate-400">Direction: ${edge.fromNode} → ${edge.toNode}</div>
-            <div class="text-[8px] text-amber-300 mt-1 uppercase">● Click to Inspect Conduit</div>
+            <div class="text-[10px] font-bold ${isOverloaded ? 'text-red-400' : 'text-cyan-400'}">Utilization: ${eState.utilizationPct}% (${eState.status.toUpperCase()})</div>
           </div>`,
           { sticky: true, className: 'leaflet-dark-tooltip' }
         );
 
+        edgeLine.bindPopup(
+          `<div class="font-mono text-xs text-slate-100 p-1 min-w-[220px]">
+            <div class="flex items-center justify-between border-b border-slate-700 pb-1 mb-1.5">
+              <span class="font-bold text-cyan-300">Conduit ${edge.id}</span>
+              <span class="text-[9px] px-1.5 py-0.5 rounded font-bold uppercase ${isOverloaded ? 'bg-red-950 text-red-300 border border-red-500' : 'bg-cyan-950 text-cyan-300 border border-cyan-500'}">
+                ${eState.status}
+              </span>
+            </div>
+            <div class="space-y-1 text-[11px]">
+              <div class="text-slate-300 text-[10px]">${edge.name}</div>
+              <div class="flex justify-between text-slate-300">
+                <span>Simulated Flow:</span>
+                <strong class="text-cyan-300">${eState.flowM3s.toFixed(1)} m³/s</strong>
+              </div>
+              <div class="flex justify-between text-slate-300">
+                <span>Design Capacity:</span>
+                <strong class="text-slate-200">${edge.designCapacityM3s.toFixed(1)} m³/s</strong>
+              </div>
+              <div class="flex justify-between text-slate-300">
+                <span>Stress / Utilization:</span>
+                <strong class="${isOverloaded ? 'text-red-400 font-bold' : 'text-emerald-400'}">${eState.utilizationPct}%</strong>
+              </div>
+              <div class="flex justify-between text-slate-300">
+                <span>Surcharge Condition:</span>
+                <strong class="${isOverloaded ? 'text-red-400' : 'text-slate-400'}">${isOverloaded ? 'SURCHARGED' : 'GRAVITY FLOW'}</strong>
+              </div>
+            </div>
+            <div class="mt-2 text-[8px] text-amber-300 uppercase border-t border-slate-800 pt-1">
+              ● Simulated Drainage Telemetry
+            </div>
+          </div>`
+        );
+
         overlayGroup.addLayer(edgeLine);
       });
-    }
 
-    // E. DRAINAGE NODES (Inlets, Manholes, Surcharged Junctions, Outfalls)
-    if (activeLayers.drainageNodes) {
+      // Nodes (Inlets, Manholes, Surcharged Junctions, Outfalls)
       DRAINAGE_NODES.forEach((node) => {
         const nState = node.timesteps[activeTimeStep];
         const color = getNodeColor(nState.status);
@@ -312,10 +450,9 @@ export const GisMap: React.FC<GisMapProps> = ({ showRoutes = false }) => {
         const isOutfall = node.type === 'outfall';
 
         if (isOutfall) {
-          // Outfall Diamond Icon
           const outfallIcon = L.divIcon({
             className: 'custom-outfall-marker',
-            html: `<div style="color: #38bdf8; font-size: 14px; font-weight: bold; transform: translate(-4px, -8px); text-shadow: 0 0 4px #000;">◆</div>`,
+            html: `<div style="color: #38bdf8; font-size: 15px; font-weight: bold; transform: translate(-5px, -9px); text-shadow: 0 0 6px #000;">◆</div>`,
             iconSize: [14, 14],
           });
           const marker = L.marker([node.lat, node.lng], { icon: outfallIcon });
@@ -326,7 +463,6 @@ export const GisMap: React.FC<GisMapProps> = ({ showRoutes = false }) => {
           );
           overlayGroup.addLayer(marker);
         } else {
-          // Circle marker for manholes, junctions, inlets
           const marker = L.circleMarker([node.lat, node.lng], {
             radius: node.type === 'junction' ? 6 : isSelected ? 7 : 4.5,
             color: isSelected ? '#ffffff' : '#0b101c',
@@ -345,10 +481,43 @@ export const GisMap: React.FC<GisMapProps> = ({ showRoutes = false }) => {
               <div class="text-[10px] capitalize text-slate-300">Type: ${node.type} | Elev: ${node.elevationM}m MSL</div>
               <div class="text-[10px]">Inflow: <strong>${nState.incomingFlowM3s.toFixed(1)} m³/s</strong> | Cap: <strong>${nState.capacityM3s.toFixed(1)} m³/s</strong></div>
               <div class="text-[10px] font-bold ${isSurcharged ? 'text-red-400' : 'text-emerald-400'}">Status: ${nState.status.toUpperCase()} (${nState.utilizationPct}%)</div>
-              ${nState.surchargeDepthM > 0 ? `<div class="text-[9px] text-red-300">Head Rise: +${nState.surchargeDepthM.toFixed(2)}m</div>` : ''}
-              <div class="text-[8px] text-amber-300 mt-1 uppercase">● Click to Inspect Node</div>
             </div>`,
             { sticky: true, className: 'leaflet-dark-tooltip' }
+          );
+
+          marker.bindPopup(
+            `<div class="font-mono text-xs text-slate-100 p-1 min-w-[220px]">
+              <div class="flex items-center justify-between border-b border-slate-700 pb-1 mb-1.5">
+                <span class="font-bold text-emerald-400">${node.id}: ${node.name}</span>
+                <span class="text-[9px] px-1.5 py-0.5 rounded font-bold uppercase ${isSurcharged ? 'bg-red-950 text-red-300 border border-red-500' : 'bg-emerald-950 text-emerald-300 border border-emerald-500'}">
+                  ${nState.status}
+                </span>
+              </div>
+              <div class="space-y-1 text-[11px]">
+                <div class="text-slate-300 text-[10px]">Type: ${node.type} | Elev: ${node.elevationM}m MSL</div>
+                <div class="flex justify-between text-slate-300">
+                  <span>Incoming Inflow:</span>
+                  <strong class="text-cyan-300">${nState.incomingFlowM3s.toFixed(1)} m³/s</strong>
+                </div>
+                <div class="flex justify-between text-slate-300">
+                  <span>Node Capacity:</span>
+                  <strong class="text-slate-200">${nState.capacityM3s.toFixed(1)} m³/s</strong>
+                </div>
+                <div class="flex justify-between text-slate-300">
+                  <span>Stress / Utilization:</span>
+                  <strong class="${isSurcharged ? 'text-red-400 font-bold' : 'text-emerald-400'}">${nState.utilizationPct}%</strong>
+                </div>
+                ${nState.surchargeDepthM > 0 ? `
+                  <div class="flex justify-between text-red-300">
+                    <span>Surcharge Head Rise:</span>
+                    <strong>+${nState.surchargeDepthM.toFixed(2)} m</strong>
+                  </div>
+                ` : ''}
+              </div>
+              <div class="mt-2 text-[8px] text-amber-300 uppercase border-t border-slate-800 pt-1">
+                ● Simulated Drainage Node Telemetry
+              </div>
+            </div>`
           );
 
           overlayGroup.addLayer(marker);
@@ -356,48 +525,9 @@ export const GisMap: React.FC<GisMapProps> = ({ showRoutes = false }) => {
       });
     }
 
-    // F. TERRAIN ELEVATION & RUNOFF FLOW VECTORS
-    if (activeLayers.terrain) {
-      TERRAIN_HILLS.forEach((hill) => {
-        const hillMarker = L.circleMarker([hill.center[0], hill.center[1]], {
-          radius: 18,
-          color: '#cbd5e1',
-          weight: 1.5,
-          dashArray: '3, 3',
-          fillColor: '#64748b',
-          fillOpacity: 0.25,
-        });
-        hillMarker.bindTooltip(
-          `<div class="font-mono text-xs"><strong>▲ ${hill.name}</strong><br/>Elevation: ${hill.elevationM}m MSL<br/><span class="text-amber-300 text-[10px]">${hill.runoffVector}</span></div>`,
-          { sticky: true, className: 'leaflet-dark-tooltip' }
-        );
-        overlayGroup.addLayer(hillMarker);
-      });
-
-      FLOW_ACCUMULATION_VECTORS.forEach((vec) => {
-        const arrow = L.polyline(
-          [
-            [vec.from[0], vec.from[1]],
-            [vec.to[0], vec.to[1]],
-          ],
-          {
-            color: '#f59e0b',
-            weight: 2,
-            dashArray: '4, 4',
-            opacity: 0.85,
-          }
-        );
-        arrow.bindTooltip(
-          `<div class="font-mono text-xs text-amber-300">${vec.flowRateDescription}</div>`,
-          { sticky: true, className: 'leaflet-dark-tooltip' }
-        );
-        overlayGroup.addLayer(arrow);
-      });
-    }
-
-    // G. LOWER-EXPOSURE ROUTING DEMO OVERLAY (IF ACTIVE)
+    // F. LOWER-EXPOSURE ROUTING OVERLAY (IF ROUTE VIEW IS ACTIVE)
     if (showRoutes && activeRoute) {
-      // Normal direct route (high flood exposure)
+      // Normal direct route (High flood exposure)
       const normalLatLngs: [number, number][] = activeRoute.normalRoute.path.map((c) => [c[0], c[1]]);
       const normalLine = L.polyline(normalLatLngs, {
         color: '#ef4444',
@@ -411,7 +541,7 @@ export const GisMap: React.FC<GisMapProps> = ({ showRoutes = false }) => {
       );
       overlayGroup.addLayer(normalLine);
 
-      // Flood-safe alternative route (lower simulated flood exposure)
+      // Flood-safe alternative route (Lower simulated flood exposure)
       const safeLatLngs: [number, number][] = activeRoute.safeRoute.path.map((c) => [c[0], c[1]]);
       const safeLine = L.polyline(safeLatLngs, {
         color: '#10b981',
@@ -419,12 +549,12 @@ export const GisMap: React.FC<GisMapProps> = ({ showRoutes = false }) => {
         opacity: 0.95,
       });
       safeLine.bindTooltip(
-        `<div class="font-mono text-xs text-emerald-300 font-bold">FLOOD-SAFE ROUTE (LOWER SIMULATED FLOOD EXPOSURE)<br/>Max Depth: ${activeRoute.safeRoute.maxDepthM}m</div>`,
+        `<div class="font-mono text-xs text-emerald-300 font-bold">LOWER SIMULATED FLOOD EXPOSURE ROUTE<br/>Max Depth: ${activeRoute.safeRoute.maxDepthM}m</div>`,
         { sticky: true, className: 'leaflet-dark-tooltip' }
       );
       overlayGroup.addLayer(safeLine);
 
-      // Start / Destination Markers
+      // Origin / Destination Markers
       const startMarker = L.circleMarker([activeRoute.originCoords[0], activeRoute.originCoords[1]], {
         radius: 7,
         color: '#ffffff',
@@ -460,6 +590,7 @@ export const GisMap: React.FC<GisMapProps> = ({ showRoutes = false }) => {
     selectedRouteId,
     selectedNode,
     selectedEdge,
+    selectedRoad,
   ]);
 
   // Map controls
@@ -468,19 +599,14 @@ export const GisMap: React.FC<GisMapProps> = ({ showRoutes = false }) => {
   const handleReset = () => {
     mapInstanceRef.current?.flyTo([26.1540, 91.7650], 13, { duration: 0.8 });
   };
-  const handleFlyTo = (lat: number, lng: number, zoom: number = 14) => {
+  const handleFlyTo = (lat: number, lng: number, zoom: number = 15) => {
     mapInstanceRef.current?.flyTo([lat, lng], zoom, { duration: 1 });
   };
 
-  // If Leaflet fails to initialize, fallback to vector SVG
-  if (hasInitError) {
-    return <FallbackSvgMap showRoutes={showRoutes} />;
-  }
-
   return (
-    <div className="relative w-full h-full min-h-[500px] flex flex-col bg-[#080d16] border border-[#1e293b] rounded-lg overflow-hidden select-none">
+    <div className="relative w-full h-full min-h-[520px] flex flex-col bg-[#080d16] border border-[#1e293b] rounded-lg overflow-hidden select-none">
       {/* Top Floating GIS Status Bar */}
-      <div className="absolute top-2.5 left-2.5 z-[1000] flex flex-wrap items-center gap-2 pointer-events-auto">
+      <div className="absolute top-2.5 left-2.5 z-[1000] flex flex-wrap items-center gap-2 pointer-events-auto max-w-[85%]">
         {/* Scenario Pill */}
         <div className="bg-[#0b101c]/90 backdrop-blur-md px-2.5 py-1 rounded border border-[#223554] text-xs font-mono flex items-center gap-2 text-slate-200 shadow-xl">
           <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span>
@@ -491,15 +617,18 @@ export const GisMap: React.FC<GisMapProps> = ({ showRoutes = false }) => {
         </div>
 
         {/* Hotspots Quick Jumper */}
-        <div className="hidden sm:flex items-center gap-1 bg-[#0b101c]/90 backdrop-blur-md p-1 rounded border border-[#223554] text-[10px] font-mono shadow-xl">
-          <span className="text-slate-400 px-1 font-bold">HOTSPOTS:</span>
-          {hotspots.slice(0, 5).map((spot) => (
+        <div className="hidden lg:flex items-center gap-1 bg-[#0b101c]/90 backdrop-blur-md p-1 rounded border border-[#223554] text-[10px] font-mono shadow-xl overflow-x-auto">
+          <span className="text-slate-400 px-1 font-bold flex items-center gap-1">
+            <Compass className="w-3 h-3 text-cyan-400" />
+            HOTSPOTS:
+          </span>
+          {hotspots.map((spot) => (
             <button
               key={spot.name}
               onClick={() => handleFlyTo(spot.lat, spot.lng, spot.zoom)}
-              className="px-1.5 py-0.5 rounded bg-[#152033] hover:bg-cyan-950 text-slate-300 hover:text-cyan-300 transition-colors border border-slate-700/60"
+              className="px-1.5 py-0.5 rounded bg-[#152033] hover:bg-cyan-950 text-slate-300 hover:text-cyan-300 transition-colors border border-slate-700/60 whitespace-nowrap"
             >
-              {spot.name}
+              {spot.name.split(' ')[0]}
             </button>
           ))}
         </div>
@@ -544,7 +673,7 @@ export const GisMap: React.FC<GisMapProps> = ({ showRoutes = false }) => {
       {/* Actual Geographic Leaflet Basemap Container */}
       <div
         ref={mapContainerRef}
-        className="w-full h-full flex-1 z-10 min-h-[500px]"
+        className="w-full h-full flex-1 z-10 min-h-[520px]"
         style={{ background: '#090e18' }}
       />
     </div>

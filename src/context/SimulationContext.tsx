@@ -1,17 +1,19 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { TimeStep, DrainageNode, DrainageEdge } from '../types';
+import { TimeStep, DrainageNode, DrainageEdge, RoadSegment } from '../types';
 import { DRAINAGE_NODES } from '../data/drainageNodes';
 import { DRAINAGE_EDGES } from '../data/drainageEdges';
+import { ROAD_SEGMENTS } from '../data/roads';
 
 export type NavigationTab = 'dashboard' | 'drainage' | 'forecast' | 'route' | 'howitworks';
 
 export interface ActiveLayers {
+  floodRisk: boolean;
   floodDepth: boolean;
   drainageNetwork: boolean;
-  drainageNodes: boolean;
-  naturalDrainage: boolean;
-  terrain: boolean;
-  roadRisk: boolean;
+  drainageStress: boolean;
+  roadExposure: boolean;
+  waterBodies: boolean;
+  roads: boolean;
 }
 
 interface SimulationContextType {
@@ -24,14 +26,17 @@ interface SimulationContextType {
   stepForward: () => void;
   activeLayers: ActiveLayers;
   toggleLayer: (layer: keyof ActiveLayers) => void;
-  baseMapMode: 'dark' | 'satellite';
-  setBaseMapMode: (mode: 'dark' | 'satellite') => void;
+  baseMapMode: 'dark' | 'osm' | 'satellite';
+  setBaseMapMode: (mode: 'dark' | 'osm' | 'satellite') => void;
   selectedNode: DrainageNode | null;
   setSelectedNode: (node: DrainageNode | null) => void;
   selectedEdge: DrainageEdge | null;
   setSelectedEdge: (edge: DrainageEdge | null) => void;
+  selectedRoad: RoadSegment | null;
+  setSelectedRoad: (road: RoadSegment | null) => void;
   selectNodeById: (id: string) => void;
   selectEdgeById: (id: string) => void;
+  selectRoadById: (id: string) => void;
   activeTab: NavigationTab;
   setActiveTab: (tab: NavigationTab) => void;
   selectedRouteId: string;
@@ -50,19 +55,21 @@ export const SimulationProvider: React.FC<{ children: ReactNode }> = ({ children
   const [activeTab, setActiveTab] = useState<NavigationTab>('dashboard');
   const [selectedRouteId, setSelectedRouteId] = useState<string>('route-01');
   const [isDisclaimerOpen, setIsDisclaimerOpen] = useState<boolean>(false);
-  const [baseMapMode, setBaseMapMode] = useState<'dark' | 'satellite'>('dark');
+  const [baseMapMode, setBaseMapMode] = useState<'dark' | 'osm' | 'satellite'>('dark');
 
   const [activeLayers, setActiveLayers] = useState<ActiveLayers>({
+    floodRisk: true,
     floodDepth: true,
     drainageNetwork: true,
-    drainageNodes: true,
-    naturalDrainage: true,
-    terrain: false,
-    roadRisk: true,
+    drainageStress: true,
+    roadExposure: true,
+    waterBodies: true,
+    roads: true,
   });
 
   const [selectedNode, setSelectedNode] = useState<DrainageNode | null>(null);
   const [selectedEdge, setSelectedEdge] = useState<DrainageEdge | null>(null);
+  const [selectedRoad, setSelectedRoad] = useState<RoadSegment | null>(null);
 
   // Auto-playback loop for RUN NOWCAST
   useEffect(() => {
@@ -118,13 +125,28 @@ export const SimulationProvider: React.FC<{ children: ReactNode }> = ({ children
   const selectNodeById = (id: string) => {
     const found = DRAINAGE_NODES.find((n) => n.id === id) || null;
     setSelectedNode(found);
-    if (found) setSelectedEdge(null);
+    if (found) {
+      setSelectedEdge(null);
+      setSelectedRoad(null);
+    }
   };
 
   const selectEdgeById = (id: string) => {
     const found = DRAINAGE_EDGES.find((e) => e.id === id) || null;
     setSelectedEdge(found);
-    if (found) setSelectedNode(null);
+    if (found) {
+      setSelectedNode(null);
+      setSelectedRoad(null);
+    }
+  };
+
+  const selectRoadById = (id: string) => {
+    const found = ROAD_SEGMENTS.find((r) => r.id === id) || null;
+    setSelectedRoad(found);
+    if (found) {
+      setSelectedNode(null);
+      setSelectedEdge(null);
+    }
   };
 
   return (
@@ -144,15 +166,30 @@ export const SimulationProvider: React.FC<{ children: ReactNode }> = ({ children
         selectedNode,
         setSelectedNode: (n) => {
           setSelectedNode(n);
-          if (n) setSelectedEdge(null);
+          if (n) {
+            setSelectedEdge(null);
+            setSelectedRoad(null);
+          }
         },
         selectedEdge,
         setSelectedEdge: (e) => {
           setSelectedEdge(e);
-          if (e) setSelectedNode(null);
+          if (e) {
+            setSelectedNode(null);
+            setSelectedRoad(null);
+          }
+        },
+        selectedRoad,
+        setSelectedRoad: (r) => {
+          setSelectedRoad(r);
+          if (r) {
+            setSelectedNode(null);
+            setSelectedEdge(null);
+          }
         },
         selectNodeById,
         selectEdgeById,
+        selectRoadById,
         activeTab,
         setActiveTab,
         selectedRouteId,
