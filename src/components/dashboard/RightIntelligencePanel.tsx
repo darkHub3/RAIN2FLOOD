@@ -47,12 +47,11 @@ export const RightIntelligencePanel: React.FC = () => {
   const khanaparaRoad = ROAD_SEGMENTS.find((r) => r.name.toLowerCase().includes('khanapara') || r.timesteps[activeTimeStep]?.riskState === 'BLOCKED') || ROAD_SEGMENTS[0];
   const khanaparaState = khanaparaRoad.timesteps[activeTimeStep];
 
-  const timelineSteps: { id: TimeStep | '+30MIN'; label: string; depth: string; targetStep: TimeStep }[] = [
-    { id: 'NOW', label: 'Now', depth: '48cm', targetStep: 'NOW' },
-    { id: '+30MIN', label: '+30min', depth: '68cm', targetStep: '+1HR' },
-    { id: '+1HR', label: '+1hr', depth: '85cm', targetStep: '+1HR' },
-    { id: '+2HR', label: '+2hr', depth: '105cm', targetStep: '+2HR' },
-    { id: '+3HR', label: '+3hr', depth: '125cm', targetStep: '+3HR' },
+  const timelineSteps: { id: TimeStep; label: string; depth: string }[] = [
+    { id: 'NOW', label: 'Now', depth: '48cm' },
+    { id: '+1HR', label: '+1hr', depth: '85cm' },
+    { id: '+2HR', label: '+2hr', depth: '105cm' },
+    { id: '+3HR', label: '+3hr', depth: '125cm' },
   ];
 
   // Top 5 affected roads dynamically sorted by flood depth
@@ -152,33 +151,32 @@ export const RightIntelligencePanel: React.FC = () => {
           </span>
         </div>
 
-        {/* 5-Node Timeline Strip */}
+        {/* 4-Node Timeline Strip */}
         <div className="relative pt-2 pb-1 px-1">
           {/* Track line behind nodes */}
-          <div className="absolute top-[18px] left-4 right-4 h-0.5 bg-slate-800" />
-          <div
-            className="absolute top-[18px] left-4 h-0.5 bg-gradient-to-r from-cyan-400 via-amber-400 to-rose-500 transition-all duration-300"
-            style={{
-              width:
-                activeTimeStep === 'NOW'
-                  ? '0%'
-                  : activeTimeStep === '+1HR'
-                  ? '48%'
-                  : activeTimeStep === '+2HR'
-                  ? '74%'
-                  : '96%',
-            }}
-          />
+          <div className="absolute top-[18px] left-4 right-4 h-0.5 bg-slate-800">
+            <div
+              className="h-full bg-gradient-to-r from-cyan-400 via-amber-400 to-rose-500 transition-all duration-300"
+              style={{
+                width:
+                  activeTimeStep === 'NOW'
+                    ? '0%'
+                    : activeTimeStep === '+1HR'
+                    ? '33.3%'
+                    : activeTimeStep === '+2HR'
+                    ? '66.7%'
+                    : '100%',
+              }}
+            />
+          </div>
 
           <div className="relative z-10 flex justify-between items-start">
             {timelineSteps.map((step) => {
-              const isMatch =
-                step.id === activeTimeStep ||
-                (step.id === '+30MIN' && activeTimeStep === '+1HR');
+              const isMatch = step.id === activeTimeStep;
               return (
                 <button
                   key={step.id}
-                  onClick={() => setTimeStep(step.targetStep)}
+                  onClick={() => setTimeStep(step.id)}
                   className="flex flex-col items-center group focus:outline-none transition-transform active:scale-95"
                 >
                   <div
@@ -203,9 +201,9 @@ export const RightIntelligencePanel: React.FC = () => {
                   </span>
                   <span
                     className={`text-[8px] font-mono font-bold ${
-                      step.depth.includes('100')
+                      parseInt(step.depth) >= 100
                         ? 'text-rose-400'
-                        : step.depth.includes('80') || step.depth.includes('95')
+                        : parseInt(step.depth) >= 70
                         ? 'text-amber-400'
                         : 'text-cyan-400'
                     }`}
