@@ -4,7 +4,14 @@ import {
   Search,
   MapPin,
   Info,
-  ChevronDown
+  ChevronDown,
+  Menu,
+  X,
+  LayoutDashboard,
+  Network,
+  TrendingUp,
+  Route,
+  HelpCircle
 } from 'lucide-react';
 
 export const Header: React.FC = () => {
@@ -19,6 +26,7 @@ export const Header: React.FC = () => {
 
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [isNavDropdownOpen, setIsNavDropdownOpen] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const locations = [
     { name: 'Khanapara Crossing', lat: 26.1180, lng: 91.8220, zoom: 15 },
@@ -35,23 +43,24 @@ export const Header: React.FC = () => {
     setIsSearchFocused(false);
   };
 
-  const navTabs: { id: NavigationTab; label: string }[] = [
-    { id: 'dashboard', label: 'GIS Dashboard' },
-    { id: 'drainage', label: 'Drainage Network' },
-    { id: 'forecast', label: 'Forecast' },
-    { id: 'route', label: 'Safe Route' },
-    { id: 'howitworks', label: 'How It Works' },
+  const navTabs: { id: NavigationTab; label: string; icon: React.ReactNode }[] = [
+    { id: 'dashboard', label: 'GIS Dashboard', icon: <LayoutDashboard className="w-4 h-4" /> },
+    { id: 'drainage', label: 'Drainage Network', icon: <Network className="w-4 h-4" /> },
+    { id: 'forecast', label: 'Forecast', icon: <TrendingUp className="w-4 h-4" /> },
+    { id: 'route', label: 'Safe Route', icon: <Route className="w-4 h-4" /> },
+    { id: 'howitworks', label: 'How It Works', icon: <HelpCircle className="w-4 h-4" /> },
   ];
 
   return (
     <header className="bg-[#080e18] border-b border-[#172338] text-slate-100 sticky top-0 z-50 select-none shadow-md">
-      <div className="w-full px-4 py-2.5 flex items-center justify-between gap-4">
+      {/* DESKTOP & MOBILE TOP BAR */}
+      <div className="w-full px-3 sm:px-4 py-2 sm:py-2.5 flex items-center justify-between gap-2 sm:gap-4">
         {/* LEFT: BRANDING */}
-        <div className="flex items-center gap-3 flex-shrink-0">
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
           {/* Flowing Wave Logo */}
           <div className="flex items-center justify-center text-cyan-400">
             <svg
-              className="w-7 h-7"
+              className="w-6 h-6 sm:w-7 sm:h-7"
               viewBox="0 0 32 32"
               fill="none"
               xmlns="http://www.w3.org/2000/svg"
@@ -77,21 +86,21 @@ export const Header: React.FC = () => {
             </svg>
           </div>
 
-          <div className="flex items-baseline gap-2.5">
-            <h1 className="text-xl font-bold text-white tracking-tight font-sans">
+          <div className="flex items-baseline gap-2">
+            <h1 className="text-lg sm:text-xl font-bold text-white tracking-tight font-sans">
               FloodCast<span className="text-xs align-top text-cyan-400 font-normal">™</span>
             </h1>
-            <span className="text-xs text-slate-400 font-normal hidden sm:inline-block border-l border-slate-700 pl-2.5">
+            <span className="text-xs text-slate-400 font-normal hidden lg:inline-block border-l border-slate-700 pl-2.5">
               Urban Flood Nowcasting & Safe Route System
             </span>
           </div>
         </div>
 
-        {/* CENTER: SEARCH BAR + COMPACT VIEW SWITCHER */}
-        <div className="flex items-center gap-2 flex-1 max-w-xl justify-center relative">
+        {/* CENTER: DESKTOP SEARCH BAR + VIEW SWITCHER (Hidden on Mobile) */}
+        <div className="hidden md:flex items-center gap-2 flex-1 max-w-xl justify-center relative">
           <div className="relative w-full max-w-md">
             <div className="flex items-center bg-[#0d1624] border border-[#1e2f49] hover:border-cyan-500/50 focus-within:border-cyan-500 rounded-lg px-3 py-1.5 transition-all text-xs">
-              <Search className="w-4 h-4 text-slate-400 mr-2 flex-shrink-0" />
+              <Search className="w-4 h-4 text-slate-400 mr-2 shrink-0" />
               <input
                 type="text"
                 placeholder="Search location (e.g. Khanapara, Guwahati)"
@@ -134,7 +143,7 @@ export const Header: React.FC = () => {
             </button>
 
             {isNavDropdownOpen && (
-              <div className="absolute top-full right-0 mt-1 w-44 bg-[#0b1320] border border-[#1e2f49] rounded-lg shadow-2xl py-1 z-50 text-xs font-mono">
+              <div className="absolute top-full right-0 mt-1 w-48 bg-[#0b1320] border border-[#1e2f49] rounded-lg shadow-2xl py-1 z-50 text-xs font-mono">
                 {navTabs.map((tab) => (
                   <button
                     key={tab.id}
@@ -148,7 +157,10 @@ export const Header: React.FC = () => {
                         : 'text-slate-300 hover:bg-[#15233a]'
                     }`}
                   >
-                    <span>{tab.label}</span>
+                    <div className="flex items-center gap-2">
+                      {tab.icon}
+                      <span>{tab.label}</span>
+                    </div>
                     {activeTab === tab.id && <span className="w-1.5 h-1.5 rounded-full bg-cyan-400"></span>}
                   </button>
                 ))}
@@ -157,20 +169,20 @@ export const Header: React.FC = () => {
           </div>
         </div>
 
-        {/* RIGHT: LOCATION, DATE/TIME, LIVE BADGE */}
-        <div className="flex items-center gap-4 text-xs flex-shrink-0 font-sans">
-          {/* Location & Time */}
-          <div className="flex items-center gap-2 text-slate-300">
+        {/* RIGHT: LOCATION, LIVE BADGE, HAMBURGER (Mobile) */}
+        <div className="flex items-center gap-2 sm:gap-3 text-xs shrink-0 font-sans">
+          {/* Location & Time (Hidden on small mobile) */}
+          <div className="hidden sm:flex items-center gap-1.5 text-slate-300">
             <MapPin className="w-3.5 h-3.5 text-cyan-400" />
             <div className="flex flex-col text-right sm:text-left leading-tight">
-              <span className="font-semibold text-slate-200">Guwahati, Assam</span>
-              <span className="text-[10px] text-slate-400 font-mono">16 Sep 2026 | 12:40 AM</span>
+              <span className="font-semibold text-slate-200 text-[11px] sm:text-xs">Guwahati, Assam</span>
+              <span className="text-[9px] sm:text-[10px] text-slate-400 font-mono">16 Sep 2026 | 12:40 AM</span>
             </div>
           </div>
 
           {/* Live Status Pill */}
-          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-950/40 border border-emerald-500/40 text-emerald-400 text-xs font-medium shadow-sm">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          <div className="flex items-center gap-1 px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full bg-emerald-950/40 border border-emerald-500/40 text-emerald-400 text-[10px] sm:text-xs font-medium shadow-sm">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
             <span>Live</span>
           </div>
 
@@ -182,8 +194,100 @@ export const Header: React.FC = () => {
           >
             <Info className="w-3.5 h-3.5" />
           </button>
+
+          {/* Mobile Hamburger Button */}
+          <button
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            className="md:hidden p-1.5 rounded-lg bg-[#0d1624] border border-[#1e2f49] text-slate-300 hover:text-cyan-400 transition-colors"
+            aria-label="Toggle navigation menu"
+          >
+            {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+          </button>
         </div>
       </div>
+
+      {/* MOBILE SEARCH ROW (Visible only on mobile < md) */}
+      <div className="md:hidden px-3 pb-2 pt-0.5">
+        <div className="relative w-full">
+          <div className="flex items-center bg-[#0d1624] border border-[#1e2f49] focus-within:border-cyan-500 rounded-lg px-2.5 py-1.5 text-xs">
+            <Search className="w-3.5 h-3.5 text-slate-400 mr-2 shrink-0" />
+            <input
+              type="text"
+              placeholder="Search location (e.g. Khanapara, Zoo Rd)..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onFocus={() => setIsSearchFocused(true)}
+              onBlur={() => setTimeout(() => setIsSearchFocused(false), 200)}
+              className="w-full bg-transparent text-slate-200 placeholder-slate-500 focus:outline-none text-xs"
+            />
+          </div>
+
+          {/* Mobile Dropdown Suggestions */}
+          {isSearchFocused && (
+            <div className="absolute top-full left-0 right-0 mt-1 bg-[#0b1320] border border-[#1e2f49] rounded-lg shadow-2xl py-1 z-50 text-xs">
+              <div className="px-3 py-1 text-[10px] text-slate-500 font-mono uppercase tracking-wider">
+                Guwahati Hotspots
+              </div>
+              {locations.map((loc) => (
+                <button
+                  key={loc.name}
+                  onMouseDown={() => handleSelectLocation(loc)}
+                  className="w-full px-3 py-2 text-left text-slate-300 hover:bg-[#15233a] hover:text-cyan-300 flex items-center justify-between border-b border-slate-800/50 last:border-0"
+                >
+                  <span className="font-medium">{loc.name}</span>
+                  <span className="text-[10px] text-cyan-400 font-mono">Jump ↗</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* MOBILE FULL-SCREEN / EXPANDABLE MENU DRAWER */}
+      {isMobileMenuOpen && (
+        <div className="md:hidden border-t border-[#172338] bg-[#090f1a] px-3 py-3 space-y-2 animate-fadeIn">
+          <div className="text-[10px] font-mono uppercase tracking-wider text-slate-500 px-1">
+            Navigation Views
+          </div>
+          <div className="grid grid-cols-1 gap-1.5">
+            {navTabs.map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => {
+                  setActiveTab(tab.id);
+                  setIsMobileMenuOpen(false);
+                }}
+                className={`w-full px-3 py-2.5 rounded-lg text-left transition-all flex items-center justify-between text-xs font-mono ${
+                  activeTab === tab.id
+                    ? 'bg-cyan-600/20 text-cyan-300 border border-cyan-500/40 font-bold'
+                    : 'bg-[#0e1625] text-slate-300 hover:bg-[#162338] border border-transparent'
+                }`}
+              >
+                <div className="flex items-center gap-2.5">
+                  <span className={activeTab === tab.id ? 'text-cyan-400' : 'text-slate-400'}>
+                    {tab.icon}
+                  </span>
+                  <span>{tab.label}</span>
+                </div>
+                {activeTab === tab.id && (
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-cyan-400/20 text-cyan-300 font-bold">
+                    Active
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+
+          <div className="pt-2 border-t border-slate-800 flex items-center justify-between text-[11px] text-slate-400 font-mono px-1">
+            <span className="flex items-center gap-1">
+              <MapPin className="w-3 h-3 text-cyan-400" />
+              Guwahati, Assam
+            </span>
+            <span>16 Sep 2026 | 12:40 AM</span>
+          </div>
+        </div>
+      )}
     </header>
   );
 };
+

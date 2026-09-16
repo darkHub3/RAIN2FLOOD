@@ -33,6 +33,7 @@ export const GisMap: React.FC<GisMapProps> = ({ showRoutes = true }) => {
   const overlayGroupRef = useRef<L.LayerGroup | null>(null);
 
   const [isKhanaparaCardDismissed, setIsKhanaparaCardDismissed] = useState(false);
+  const [isTimerCollapsed, setIsTimerCollapsed] = useState(false);
 
   const {
     activeTimeStep,
@@ -505,97 +506,115 @@ export const GisMap: React.FC<GisMapProps> = ({ showRoutes = true }) => {
   };
 
   return (
-    <div className="relative w-full h-full min-h-[580px] lg:min-h-[640px] flex flex-col bg-[#080d16] border border-[#162236] rounded-xl overflow-hidden select-none shadow-2xl">
+    <div className="relative w-full h-full min-h-[400px] sm:min-h-[500px] lg:min-h-[640px] flex flex-col bg-[#080d16] border border-[#162236] rounded-xl overflow-hidden select-none shadow-2xl">
       {/* 1. FLOATING COMPASS (TOP-LEFT) */}
-      <div className="absolute top-4 left-4 z-[1000] pointer-events-none">
-        <div className="w-8 h-8 rounded-full bg-[#0b1320]/80 backdrop-blur-md border border-[#1e2f49] flex items-center justify-center shadow-lg text-slate-300">
-          <Compass className="w-5 h-5 text-cyan-400" />
+      <div className="absolute top-2.5 left-2.5 sm:top-4 sm:left-4 z-[1000] pointer-events-none">
+        <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-[#0b1320]/80 backdrop-blur-md border border-[#1e2f49] flex items-center justify-center shadow-lg text-slate-300">
+          <Compass className="w-4 h-4 sm:w-5 sm:h-5 text-cyan-400" />
         </div>
       </div>
 
       {/* 2. FLOATING CARD: FLOOD COMPLETION TIMER (TOP-RIGHT) */}
-      <div className="absolute top-4 right-4 z-[1000] pointer-events-auto">
-        <div className="bg-[#0b1322]/90 backdrop-blur-md border border-[#1e2f49] rounded-xl p-3 shadow-2xl flex flex-col gap-1 min-w-[210px]">
-          {/* Header */}
-          <div className="flex items-center justify-between text-[11px] text-slate-300 border-b border-slate-700/60 pb-1.5 font-medium">
-            <span>Flood Completion Timer</span>
-            <Info className="w-3.5 h-3.5 text-slate-400 cursor-pointer hover:text-cyan-400" />
-          </div>
-
-          {/* Donut Gauge & 48 min readout */}
-          <div className="flex items-center gap-3 pt-1">
-            {/* Circular Progress Gauge */}
-            <div className="relative w-14 h-14 flex items-center justify-center flex-shrink-0">
-              <svg className="w-14 h-14 -rotate-90" viewBox="0 0 44 44">
-                {/* Background Ring */}
-                <circle
-                  cx="22"
-                  cy="22"
-                  r="18"
-                  fill="none"
-                  stroke="#1e293b"
-                  strokeWidth="4"
-                />
-                {/* Colored Progress Arc */}
-                <circle
-                  cx="22"
-                  cy="22"
-                  r="18"
-                  fill="none"
-                  stroke="url(#timerGradient)"
-                  strokeWidth="4"
-                  strokeDasharray="113"
-                  strokeDashoffset="34"
-                  strokeLinecap="round"
-                />
-                <defs>
-                  <linearGradient id="timerGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" stopColor="#06b6d4" />
-                    <stop offset="60%" stopColor="#eab308" />
-                    <stop offset="100%" stopColor="#ef4444" />
-                  </linearGradient>
-                </defs>
-              </svg>
-              {/* Center icon */}
-              <Clock className="w-4 h-4 text-cyan-400 absolute" />
+      <div className="absolute top-2.5 right-2.5 sm:top-4 sm:right-4 z-[1000] pointer-events-auto">
+        {isTimerCollapsed ? (
+          <button
+            onClick={() => setIsTimerCollapsed(false)}
+            className="bg-[#0b1322]/90 backdrop-blur-md border border-[#1e2f49] hover:border-cyan-500/50 rounded-xl px-2.5 py-1.5 shadow-2xl flex items-center gap-2 text-xs text-slate-200 transition-all"
+            title="Expand Flood Completion Timer"
+          >
+            <Clock className="w-3.5 h-3.5 text-cyan-400" />
+            <span className="font-bold text-white">48 min</span>
+            <span className="text-[10px] text-rose-400 font-semibold">to flood</span>
+          </button>
+        ) : (
+          <div className="bg-[#0b1322]/95 backdrop-blur-md border border-[#1e2f49] rounded-xl p-2 sm:p-3 shadow-2xl flex flex-col gap-1 max-w-[175px] sm:max-w-[220px]">
+            {/* Header with Minimize button */}
+            <div className="flex items-center justify-between text-[10px] sm:text-[11px] text-slate-300 border-b border-slate-700/60 pb-1 font-medium">
+              <span className="truncate pr-1">Flood Completion</span>
+              <button
+                onClick={() => setIsTimerCollapsed(true)}
+                className="text-slate-400 hover:text-white text-[11px] p-0.5"
+                title="Minimize timer"
+              >
+                ✕
+              </button>
             </div>
 
-            {/* Readout */}
-            <div className="flex flex-col">
-              <div className="text-xl font-bold text-white tracking-tight leading-none">
-                48 <span className="text-xs font-normal text-slate-300">min</span>
+            {/* Donut Gauge & 48 min readout */}
+            <div className="flex items-center gap-2 sm:gap-3 pt-0.5 sm:pt-1">
+              {/* Circular Progress Gauge */}
+              <div className="relative w-11 h-11 sm:w-14 sm:h-14 flex items-center justify-center shrink-0">
+                <svg className="w-11 h-11 sm:w-14 sm:h-14 -rotate-90" viewBox="0 0 44 44">
+                  {/* Background Ring */}
+                  <circle
+                    cx="22"
+                    cy="22"
+                    r="18"
+                    fill="none"
+                    stroke="#1e293b"
+                    strokeWidth="4"
+                  />
+                  {/* Colored Progress Arc */}
+                  <circle
+                    cx="22"
+                    cy="22"
+                    r="18"
+                    fill="none"
+                    stroke="url(#timerGradient)"
+                    strokeWidth="4"
+                    strokeDasharray="113"
+                    strokeDashoffset="34"
+                    strokeLinecap="round"
+                  />
+                  <defs>
+                    <linearGradient id="timerGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" stopColor="#06b6d4" />
+                      <stop offset="60%" stopColor="#eab308" />
+                      <stop offset="100%" stopColor="#ef4444" />
+                    </linearGradient>
+                  </defs>
+                </svg>
+                {/* Center icon */}
+                <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-cyan-400 absolute" />
               </div>
-              <span className="text-[10px] text-slate-400 mt-0.5">to reach flood level</span>
-              <span className="text-[9px] text-cyan-400/90 font-mono mt-0.5">
-                (current water depth: 35 cm)
-              </span>
+
+              {/* Readout */}
+              <div className="flex flex-col min-w-0">
+                <div className="text-base sm:text-xl font-bold text-white tracking-tight leading-none">
+                  48 <span className="text-[10px] sm:text-xs font-normal text-slate-300">min</span>
+                </div>
+                <span className="text-[9px] sm:text-[10px] text-slate-400 mt-0.5 truncate">to reach flood</span>
+                <span className="text-[8px] sm:text-[9px] text-cyan-400/90 font-mono mt-0.5">
+                  depth: 35 cm
+                </span>
+              </div>
             </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* 3. FLOATING PINNED CALLOUT: KHANAPARA CROSSING (ON MAP) */}
       {!isKhanaparaCardDismissed && (
-        <div className="absolute top-28 left-20 lg:left-36 z-[1000] pointer-events-auto max-w-[270px] animate-fadeIn">
-          <div className="bg-[#0b1322]/95 backdrop-blur-md border border-rose-500/50 rounded-xl p-3 shadow-2xl text-xs space-y-2 relative">
+        <div className="absolute top-16 sm:top-28 left-2 sm:left-20 lg:left-36 z-[1000] pointer-events-auto max-w-[calc(100%-1rem)] sm:max-w-[270px] animate-fadeIn">
+          <div className="bg-[#0b1322]/95 backdrop-blur-md border border-rose-500/50 rounded-xl p-2.5 sm:p-3 shadow-2xl text-xs space-y-1.5 sm:space-y-2 relative">
             {/* Header with Hazard Icon */}
             <div className="flex items-start gap-2">
-              <div className="w-5 h-5 rounded bg-rose-500/20 border border-rose-500/50 flex items-center justify-center text-rose-400 flex-shrink-0 mt-0.5">
+              <div className="w-5 h-5 rounded bg-rose-500/20 border border-rose-500/50 flex items-center justify-center text-rose-400 shrink-0 mt-0.5">
                 <AlertTriangle className="w-3.5 h-3.5 fill-rose-500/30" />
               </div>
 
               <div>
-                <div className="font-bold text-white text-[13px] leading-tight">
+                <div className="font-bold text-white text-xs sm:text-[13px] leading-tight">
                   Khanapara Crossing
                 </div>
-                <div className="text-[10px] font-semibold text-rose-400 uppercase tracking-wider">
+                <div className="text-[9px] sm:text-[10px] font-semibold text-rose-400 uppercase tracking-wider">
                   High Risk Zone
                 </div>
               </div>
 
               <button
                 onClick={() => setIsKhanaparaCardDismissed(true)}
-                className="ml-auto text-slate-500 hover:text-white text-xs"
+                className="ml-auto text-slate-500 hover:text-white text-xs p-0.5"
                 title="Dismiss callout"
               >
                 ✕
@@ -603,9 +622,9 @@ export const GisMap: React.FC<GisMapProps> = ({ showRoutes = true }) => {
             </div>
 
             {/* Metrics */}
-            <div className="space-y-1 text-[11px] text-slate-300 pt-1 border-t border-slate-800">
+            <div className="space-y-0.5 sm:space-y-1 text-[10px] sm:text-[11px] text-slate-300 pt-1 border-t border-slate-800">
               <div className="flex justify-between items-center">
-                <span className="text-slate-400">Predicted Water Depth:</span>
+                <span className="text-slate-400">Water Depth:</span>
                 <strong className="text-white font-mono">60 – 100 cm</strong>
               </div>
               <div className="flex justify-between items-center">
@@ -618,8 +637,8 @@ export const GisMap: React.FC<GisMapProps> = ({ showRoutes = true }) => {
             </div>
 
             {/* Warning Pill Alert */}
-            <div className="p-1.5 rounded-lg bg-rose-950/60 border border-rose-500/40 text-[10px] text-rose-200 flex items-center gap-1.5 font-medium">
-              <AlertTriangle className="w-3.5 h-3.5 text-rose-400 flex-shrink-0" />
+            <div className="p-1 sm:p-1.5 rounded-lg bg-rose-950/60 border border-rose-500/40 text-[9px] sm:text-[10px] text-rose-200 flex items-center gap-1.5 font-medium">
+              <AlertTriangle className="w-3.5 h-3.5 text-rose-400 shrink-0" />
               <span>Will become a risk zone in 48 min</span>
             </div>
           </div>
@@ -627,32 +646,32 @@ export const GisMap: React.FC<GisMapProps> = ({ showRoutes = true }) => {
       )}
 
       {/* 4. FLOATING MAP NAVIGATION CONTROLS (BOTTOM-RIGHT) */}
-      <div className="absolute bottom-16 right-4 z-[1000] flex flex-col gap-1.5 pointer-events-auto">
+      <div className="absolute bottom-20 sm:bottom-16 right-2 sm:right-4 z-[1000] flex flex-col gap-1 sm:gap-1.5 pointer-events-auto">
         <button
           onClick={handleZoomIn}
-          className="w-8 h-8 rounded-lg bg-[#0b1322]/90 backdrop-blur-md border border-[#1e2f49] hover:bg-cyan-950 text-slate-200 hover:text-cyan-300 flex items-center justify-center shadow-lg transition-colors"
+          className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-[#0b1322]/90 backdrop-blur-md border border-[#1e2f49] hover:bg-cyan-950 text-slate-200 hover:text-cyan-300 flex items-center justify-center shadow-lg transition-colors"
           title="Zoom In"
         >
-          <Plus className="w-4 h-4" />
+          <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
         </button>
         <button
           onClick={handleZoomOut}
-          className="w-8 h-8 rounded-lg bg-[#0b1322]/90 backdrop-blur-md border border-[#1e2f49] hover:bg-cyan-950 text-slate-200 hover:text-cyan-300 flex items-center justify-center shadow-lg transition-colors"
+          className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-[#0b1322]/90 backdrop-blur-md border border-[#1e2f49] hover:bg-cyan-950 text-slate-200 hover:text-cyan-300 flex items-center justify-center shadow-lg transition-colors"
           title="Zoom Out"
         >
-          <Minus className="w-4 h-4" />
+          <Minus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
         </button>
         <button
           onClick={handleLocate}
-          className="w-8 h-8 rounded-lg bg-[#0b1322]/90 backdrop-blur-md border border-[#1e2f49] hover:bg-cyan-950 text-slate-200 hover:text-cyan-300 flex items-center justify-center shadow-lg transition-colors"
+          className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-[#0b1322]/90 backdrop-blur-md border border-[#1e2f49] hover:bg-cyan-950 text-slate-200 hover:text-cyan-300 flex items-center justify-center shadow-lg transition-colors"
           title="Center on Guwahati"
         >
-          <Crosshair className="w-4 h-4" />
+          <Crosshair className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
         </button>
       </div>
 
-      {/* 5. FLOATING SCALE BAR (BOTTOM-LEFT) */}
-      <div className="absolute bottom-16 left-4 z-[1000] pointer-events-none">
+      {/* 5. FLOATING SCALE BAR (BOTTOM-LEFT, Hidden on narrow mobile) */}
+      <div className="hidden sm:block absolute bottom-16 left-4 z-[1000] pointer-events-none">
         <div className="bg-[#0b1322]/80 backdrop-blur-md px-2 py-1 rounded border border-[#1e2f49] text-[9px] font-mono text-slate-300 shadow-md flex flex-col gap-0.5">
           <div className="flex justify-between w-28 text-[8px] text-slate-400">
             <span>0</span>
@@ -669,34 +688,34 @@ export const GisMap: React.FC<GisMapProps> = ({ showRoutes = true }) => {
       </div>
 
       {/* 6. MAP-BOTTOM TIMELINE & NOWCAST BAR (IN-MAP FULL WIDTH) */}
-      <div className="absolute bottom-2 left-3 right-3 z-[1000] pointer-events-auto">
-        <div className="bg-[#0b1322]/92 backdrop-blur-md border border-[#1e2f49] rounded-xl px-3 py-2 flex flex-wrap items-center justify-between gap-3 shadow-2xl">
+      <div className="absolute bottom-2 left-2 right-2 sm:left-3 sm:right-3 z-[1000] pointer-events-auto">
+        <div className="bg-[#0b1322]/95 backdrop-blur-md border border-[#1e2f49] rounded-xl px-2.5 sm:px-3 py-1.5 sm:py-2 flex items-center justify-between gap-2 sm:gap-3 shadow-2xl">
           {/* Play/Pause Button */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             {!isPlaying ? (
               <button
                 onClick={runNowcast}
-                className="w-8 h-8 rounded-full bg-cyan-500 hover:bg-cyan-400 text-white flex items-center justify-center shadow-md active:scale-95 transition-all"
+                className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-cyan-500 hover:bg-cyan-400 text-white flex items-center justify-center shadow-md active:scale-95 transition-all"
                 title="Play Nowcast Timeline"
               >
-                <Play className="w-3.5 h-3.5 fill-current ml-0.5" />
+                <Play className="w-3 h-3 sm:w-3.5 sm:h-3.5 fill-current ml-0.5" />
               </button>
             ) : (
               <button
                 onClick={pauseNowcast}
-                className="w-8 h-8 rounded-full bg-amber-500 hover:bg-amber-400 text-white flex items-center justify-center shadow-md active:scale-95 transition-all"
+                className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-amber-500 hover:bg-amber-400 text-white flex items-center justify-center shadow-md active:scale-95 transition-all"
                 title="Pause Timeline"
               >
-                <Pause className="w-3.5 h-3.5 fill-current" />
+                <Pause className="w-3 h-3 sm:w-3.5 sm:h-3.5 fill-current" />
               </button>
             )}
-            <span className="text-xs font-semibold text-white ml-1">
+            <span className="text-[11px] sm:text-xs font-semibold text-white ml-0.5">
               {activeTimeStep === 'NOW' ? 'Now' : activeTimeStep}
             </span>
           </div>
 
           {/* Interactive Slider Track */}
-          <div className="flex-1 max-w-xl mx-2 flex flex-col gap-1">
+          <div className="flex-1 min-w-[120px] max-w-xl mx-1 sm:mx-2 flex flex-col gap-0.5 sm:gap-1">
             <div className="relative flex items-center">
               <input
                 type="range"
@@ -722,7 +741,7 @@ export const GisMap: React.FC<GisMapProps> = ({ showRoutes = true }) => {
             </div>
 
             {/* Slider Step Labels */}
-            <div className="flex justify-between text-[10px] font-mono text-slate-400 px-0.5">
+            <div className="flex justify-between text-[9px] sm:text-[10px] font-mono text-slate-400 px-0.5">
               <span
                 onClick={() => { pauseNowcast(); setTimeStep('NOW'); }}
                 className={`cursor-pointer hover:text-cyan-300 ${activeTimeStep === 'NOW' ? 'text-cyan-400 font-bold' : ''}`}
@@ -750,8 +769,8 @@ export const GisMap: React.FC<GisMapProps> = ({ showRoutes = true }) => {
             </div>
           </div>
 
-          {/* Timestamp Metadata */}
-          <div className="hidden sm:flex flex-col text-right text-[10px] font-mono text-slate-400 leading-tight">
+          {/* Timestamp Metadata (Hidden on Mobile) */}
+          <div className="hidden md:flex flex-col text-right text-[10px] font-mono text-slate-400 leading-tight shrink-0">
             <span>Forecast: 16 Sep 2026, 02:40 AM</span>
             <span className="text-slate-500">Model Run: 16 Sep 2026, 12:15 AM</span>
           </div>
@@ -761,7 +780,7 @@ export const GisMap: React.FC<GisMapProps> = ({ showRoutes = true }) => {
       {/* 7. ACTUAL LEAFLET MAP CONTAINER */}
       <div
         ref={mapContainerRef}
-        className="w-full h-full flex-1 z-10 min-h-[580px]"
+        className="w-full h-full flex-1 z-10 min-h-[400px] sm:min-h-[500px] lg:min-h-[580px]"
         style={{ background: '#090e18' }}
       />
     </div>
