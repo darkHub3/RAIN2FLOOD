@@ -44,7 +44,7 @@ export const RightIntelligencePanel: React.FC = () => {
   const edgeState = activeAlertEdge.timesteps[activeTimeStep];
   const isEdgeOverloaded = edgeState.flowM3s > activeAlertEdge.designCapacityM3s;
 
-  const khanaparaRoad = ROAD_SEGMENTS.find((r) => r.id === 'RE-001' || r.legacyId === 'RD-01' || r.id === 'RD-01') || ROAD_SEGMENTS[0];
+  const khanaparaRoad = ROAD_SEGMENTS.find((r) => r.name.toLowerCase().includes('khanapara') || r.timesteps[activeTimeStep]?.riskState === 'BLOCKED') || ROAD_SEGMENTS[0];
   const khanaparaState = khanaparaRoad.timesteps[activeTimeStep];
 
   const timelineSteps: { id: TimeStep | '+30MIN'; label: string; depth: string; targetStep: TimeStep }[] = [

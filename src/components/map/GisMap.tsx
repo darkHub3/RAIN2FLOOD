@@ -441,7 +441,8 @@ export const GisMap: React.FC<GisMapProps> = () => {
 
       roadLine.bindTooltip(
         `<div class="font-sans text-xs">
-          <strong class="text-white">${road.name}</strong><br/>
+          <strong class="text-white">${road.name}</strong> <span class="text-[10px] text-cyan-400">(${road.id})</span><br/>
+          <span class="text-[10px] text-slate-400">OSM Way: ${road.osmId || 'N/A'}${road.highwayType ? ` • ${road.highwayType}` : ''}</span><br/>
           Status: <span style="font-weight:bold; color: ${
             riskState === 'BLOCKED'
               ? '#ef4444'
@@ -851,11 +852,18 @@ export const GisMap: React.FC<GisMapProps> = () => {
                   </div>
 
                   <div className="flex justify-between items-center text-[10px]">
-                    <span className="text-slate-400">Graph Edge:</span>
+                    <span className="text-slate-400">OSM Feature:</span>
                     <span className="text-cyan-300 font-mono">
-                      {selectedRoad.id} {selectedRoad.from && selectedRoad.to ? `(${selectedRoad.from} → ${selectedRoad.to})` : ''}
+                      {selectedRoad.id} {selectedRoad.osmId ? `(Way ${selectedRoad.osmId})` : ''}
                     </span>
                   </div>
+
+                  {selectedRoad.highwayType && (
+                    <div className="flex justify-between items-center text-[10px]">
+                      <span className="text-slate-400">Classification:</span>
+                      <span className="text-slate-200 uppercase font-mono">{selectedRoad.highwayType}</span>
+                    </div>
+                  )}
 
                   <div className="flex justify-between items-center">
                     <span className="text-slate-400">Status:</span>

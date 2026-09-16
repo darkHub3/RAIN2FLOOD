@@ -160,8 +160,8 @@ export const FallbackSvgMap: React.FC<SvgMapProps> = () => {
                   <button onClick={() => setSelectedRoad(null)} className="text-slate-400 hover:text-white">✕</button>
                 </div>
                 <div className="space-y-1 font-mono text-[11px] text-slate-300">
-                  <div className="font-bold text-white text-xs">{selectedRoad.name}</div>
-                  <div className="text-[10px] text-cyan-300">Edge: {selectedRoad.id} {selectedRoad.from && selectedRoad.to ? `(${selectedRoad.from} → ${selectedRoad.to})` : ''}</div>
+                  <div className="text-[10px] text-cyan-300">Feature: {selectedRoad.id} {selectedRoad.osmId ? `(OSM Way ${selectedRoad.osmId})` : ''}</div>
+                  {selectedRoad.highwayType && <div className="text-[9px] text-slate-400 uppercase">Class: {selectedRoad.highwayType}</div>}
                   <div>Status: <span className="text-red-400 font-bold">{isBlocked ? 'SIMULATED BLOCKED CONDITION' : rState.riskState}</span></div>
                   <div>Simulated Depth: <span className="text-cyan-300">{rState.waterDepthM.toFixed(2)} m</span></div>
                   <div>Drainage Stress: <span className="text-white">{rState.drainageStressPct || 85}%</span></div>

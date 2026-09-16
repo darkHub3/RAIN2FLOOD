@@ -98,9 +98,14 @@ export const MapLegend: React.FC = () => {
       </div>
 
       {/* Data Disclosure */}
-      <div className="text-[9px] text-slate-400 pt-1.5 border-t border-slate-800 flex items-center gap-1">
-        <Info className="w-3 h-3 text-cyan-400 shrink-0" />
-        <span>Simulated pilot data | Guwahati study area</span>
+      <div className="text-[9px] text-slate-400 pt-1.5 border-t border-slate-800 space-y-0.5">
+        <div className="flex items-center gap-1 text-cyan-300">
+          <Info className="w-3 h-3 text-cyan-400 shrink-0" />
+          <span className="font-semibold">Roads: OpenStreetMap (OSM) Centerlines</span>
+        </div>
+        <div className="text-[8.5px] text-slate-400 pl-4 leading-tight">
+          Overland flood risk coupled via hydrologic proximity simulation.
+        </div>
       </div>
     </div>
   );

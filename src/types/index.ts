@@ -87,14 +87,16 @@ export interface RoadNode {
 }
 
 export interface RoadSegment {
-  id: string; // "RE-001", "RE-002", etc.
+  id: string; // "RE-OSM-xxxx"
   legacyId?: string; // "RD-01", etc. for backwards compatibility
   name: string;
   roadName?: string;
-  from: string; // "R-xxx" road node ID
-  to: string;   // "R-yyy" road node ID
-  geometry: [number, number][]; // [[lng, lat], ...] road-following polyline (GeoJSON standard)
-  path: [number, number][];     // [[lat, lng], ...] road-following polyline (Leaflet standard)
+  osmId?: number;
+  highwayType?: string;
+  from?: string; // intersection node if connected
+  to?: string;   // intersection node if connected
+  geometry: [number, number][]; // [[lng, lat], ...] actual OSM centerline (GeoJSON standard)
+  path: [number, number][];     // [[lat, lng], ...] actual OSM centerline (Leaflet standard)
   timesteps: Record<TimeStep, RoadTimestepState>;
   description?: string;
 }

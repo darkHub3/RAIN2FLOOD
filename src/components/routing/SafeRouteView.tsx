@@ -255,11 +255,17 @@ export const SafeRouteView: React.FC = () => {
               </div>
 
               <div className="flex justify-between items-center text-[10px]">
-                <span className="text-slate-400 font-sans">Graph Edge:</span>
+                <span className="text-slate-400 font-sans">OSM Feature:</span>
                 <span className="text-cyan-300 font-mono">
-                  {activeInspectRoad.id} {activeInspectRoad.from && activeInspectRoad.to ? `(${activeInspectRoad.from} → ${activeInspectRoad.to})` : ''}
+                  {activeInspectRoad.id} {activeInspectRoad.osmId ? `(Way ${activeInspectRoad.osmId})` : ''}
                 </span>
               </div>
+              {activeInspectRoad.highwayType && (
+                <div className="flex justify-between items-center text-[10px]">
+                  <span className="text-slate-400 font-sans">Classification:</span>
+                  <span className="text-slate-200 uppercase font-mono">{activeInspectRoad.highwayType}</span>
+                </div>
+              )}
 
               <div className="flex justify-between items-center">
                 <span className="text-slate-400 font-sans">Status:</span>
