@@ -88,7 +88,7 @@ export const Header: React.FC = () => {
 
           <div className="flex items-baseline gap-2">
             <h1 className="text-lg sm:text-xl font-bold text-white tracking-tight font-sans">
-              FloodCast<span className="text-xs align-top text-cyan-400 font-normal">™</span>
+              AquaNode<span className="text-xs align-top text-cyan-400 font-normal">™</span>
             </h1>
             <span className="text-xs text-slate-400 font-normal hidden lg:inline-block border-l border-slate-700 pl-2.5">
               Flood Risk & Road Impact Modeling | Guwahati Pilot
