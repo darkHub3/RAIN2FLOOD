@@ -12,9 +12,11 @@ export const ROAD_SEGMENTS: RoadSegment[] = [
     name: "Khanapara Crossing",
     description: "Major southern junction connecting GS Road to Meghalaya corridor.",
     path: [
-      [26.1260, 91.8150],
-      [26.1235, 91.8185],
-      [26.1210, 91.8220],
+      [26.1320, 91.8105],
+      [26.1275, 91.8155],
+      [26.1230, 91.8195],
+      [26.1185, 91.8235],
+      [26.1165, 91.8250],
       [26.1170, 91.8260]
     ],
     timesteps: {
@@ -29,10 +31,13 @@ export const ROAD_SEGMENTS: RoadSegment[] = [
     name: "Anil Nagar",
     description: "Low-lying bowl corridor prone to rapid Bharalu canal surcharge.",
     path: [
-      [26.1795, 91.7680],
-      [26.1765, 91.7715],
-      [26.1730, 91.7745],
-      [26.1710, 91.7770]
+      [26.1855, 91.7735],
+      [26.1830, 91.7720],
+      [26.1805, 91.7705],
+      [26.1780, 91.7680],
+      [26.1755, 91.7645],
+      [26.1735, 91.7610],
+      [26.1718, 91.7562]
     ],
     timesteps: {
       NOW: { riskState: "BLOCKED", status: "impassable", waterDepthM: 0.62, risk: "critical", drainageStressPct: 122, timeToCritical: "Critical now" },
@@ -46,10 +51,13 @@ export const ROAD_SEGMENTS: RoadSegment[] = [
     name: "Rukminigaon Road",
     description: "Depressed arterial link between Down Town hospital and GS Road.",
     path: [
-      [26.1410, 91.7930],
-      [26.1395, 91.7965],
-      [26.1370, 91.8000],
-      [26.1345, 91.8035]
+      [26.1450, 91.7940],
+      [26.1440, 91.7955],
+      [26.1430, 91.7970],
+      [26.1420, 91.7985],
+      [26.1410, 91.7995],
+      [26.1395, 91.8010],
+      [26.1380, 91.8030]
     ],
     timesteps: {
       NOW: { riskState: "HIGH RISK", status: "caution", waterDepthM: 0.44, risk: "high", drainageStressPct: 95, timeToCritical: "35 min" },
@@ -63,10 +71,10 @@ export const ROAD_SEGMENTS: RoadSegment[] = [
     name: "Bharalumukh Sluice Gate Approach",
     description: "Lower discharge node roadway near the Brahmaputra outfall.",
     path: [
-      [26.1758, 91.7285],
+      [26.1695, 91.7325],
+      [26.1715, 91.7290],
       [26.1740, 91.7260],
-      [26.1720, 91.7240],
-      [26.1705, 91.7215]
+      [26.1730, 91.7215]
     ],
     timesteps: {
       NOW: { riskState: "BLOCKED", status: "impassable", waterDepthM: 0.65, risk: "critical", drainageStressPct: 126, timeToCritical: "Critical now" },
@@ -80,10 +88,13 @@ export const ROAD_SEGMENTS: RoadSegment[] = [
     name: "Hatigaon Canal Crossing",
     description: "Arterial bridge and road crossing adjacent to southern drainage collector.",
     path: [
-      [26.1410, 91.7850],
-      [26.1360, 91.7820],
-      [26.1310, 91.7710],
-      [26.1260, 91.7650]
+      [26.1400, 91.7905],
+      [26.1380, 91.7885],
+      [26.1360, 91.7850],
+      [26.1340, 91.7820],
+      [26.1315, 91.7770],
+      [26.1290, 91.7725],
+      [26.1265, 91.7670]
     ],
     timesteps: {
       NOW: { riskState: "HIGH RISK", status: "caution", waterDepthM: 0.38, risk: "high", drainageStressPct: 90, timeToCritical: "40 min" },
@@ -118,8 +129,12 @@ export const ROAD_SEGMENTS: RoadSegment[] = [
     name: "GS Road — Bhangagarh Junction",
     description: "Transit nexus receiving heavy mountain runoff from GMC medical hills.",
     path: [
-      [26.1685, 91.7580],
-      [26.1630, 91.7635],
+      [26.1685, 91.7595],
+      [26.1668, 91.7612],
+      [26.1648, 91.7628],
+      [26.1630, 91.7645],
+      [26.1610, 91.7665],
+      [26.1598, 91.7675],
       [26.1585, 91.7685]
     ],
     timesteps: {
@@ -135,7 +150,12 @@ export const ROAD_SEGMENTS: RoadSegment[] = [
     description: "Mid-reach of primary highway experiencing backwater hydraulic surcharge.",
     path: [
       [26.1585, 91.7685],
-      [26.1540, 91.7750],
+      [26.1570, 91.7705],
+      [26.1555, 91.7725],
+      [26.1542, 91.7745],
+      [26.1530, 91.7765],
+      [26.1518, 91.7785],
+      [26.1505, 91.7805],
       [26.1495, 91.7820]
     ],
     timesteps: {
@@ -151,8 +171,12 @@ export const ROAD_SEGMENTS: RoadSegment[] = [
     description: "Depressed roadway beneath flyover prone to rapid localized ponding.",
     path: [
       [26.1495, 91.7820],
-      [26.1480, 91.7875],
-      [26.1460, 91.7940]
+      [26.1488, 91.7840],
+      [26.1482, 91.7852],
+      [26.1478, 91.7865],
+      [26.1472, 91.7885],
+      [26.1465, 91.7905],
+      [26.1458, 91.7925]
     ],
     timesteps: {
       NOW: { riskState: "MODERATE", status: "caution", waterDepthM: 0.28, risk: "moderate", drainageStressPct: 86, timeToCritical: "1 hr 05 min" },
@@ -230,9 +254,12 @@ export const ROAD_SEGMENTS: RoadSegment[] = [
     name: "Bhetapara Chariali Sector",
     description: "Crossroads carrying discharge toward southern Mora Bharalu canal.",
     path: [
-      [26.1320, 91.7760],
-      [26.1290, 91.7720],
-      [26.1260, 91.7670]
+      [26.1265, 91.7670],
+      [26.1250, 91.7620],
+      [26.1240, 91.7560],
+      [26.1230, 91.7500],
+      [26.1220, 91.7430],
+      [26.1215, 91.7370]
     ],
     timesteps: {
       NOW: { riskState: "MODERATE", status: "caution", waterDepthM: 0.25, risk: "moderate", drainageStressPct: 83, timeToCritical: "1 hr 15 min" },
@@ -298,9 +325,12 @@ export const ROAD_SEGMENTS: RoadSegment[] = [
     name: "GS Road — Ganeshguri to Six Mile",
     description: "Major highway stretch carrying heavy commuter traffic.",
     path: [
-      [26.1445, 91.8010],
-      [26.1390, 91.7990],
-      [26.1320, 91.8110]
+      [26.1458, 91.7925],
+      [26.1440, 91.7955],
+      [26.1410, 91.7995],
+      [26.1380, 91.8030],
+      [26.1370, 91.8045],
+      [26.1360, 91.8055]
     ],
     timesteps: {
       NOW: { riskState: "MODERATE", status: "caution", waterDepthM: 0.15, risk: "moderate", drainageStressPct: 70, timeToCritical: "1 hr 45 min" },
@@ -507,8 +537,12 @@ export const ROAD_SEGMENTS: RoadSegment[] = [
     name: "Beltola Tiniali North Access",
     description: "Bustling junction leading into residential Beltola market district.",
     path: [
-      [26.1340, 91.7960],
-      [26.1310, 91.7975],
+      [26.1360, 91.8055],
+      [26.1350, 91.8045],
+      [26.1335, 91.8030],
+      [26.1320, 91.8015],
+      [26.1305, 91.8000],
+      [26.1292, 91.7988],
       [26.1280, 91.7980]
     ],
     timesteps: {
@@ -523,9 +557,12 @@ export const ROAD_SEGMENTS: RoadSegment[] = [
     name: "Jayanagar Arterial Link",
     description: "East Beltola residential connector with open concrete gutters.",
     path: [
-      [26.1280, 91.7980],
-      [26.1260, 91.8030],
-      [26.1240, 91.8080]
+      [26.1330, 91.8125],
+      [26.1315, 91.8095],
+      [26.1300, 91.8065],
+      [26.1290, 91.8035],
+      [26.1285, 91.8005],
+      [26.1280, 91.7980]
     ],
     timesteps: {
       NOW: { riskState: "MODERATE", status: "caution", waterDepthM: 0.13, risk: "moderate", drainageStressPct: 69, timeToCritical: "1 hr 55 min" },
@@ -555,9 +592,12 @@ export const ROAD_SEGMENTS: RoadSegment[] = [
     name: "Boragaon Highway Feeder",
     description: "Western marshland bypass junction with Deepor Beel overflow link.",
     path: [
-      [26.1380, 91.7060],
-      [26.1350, 91.7080],
-      [26.1320, 91.7110]
+      [26.1215, 91.7370],
+      [26.1230, 91.7310],
+      [26.1260, 91.7240],
+      [26.1295, 91.7170],
+      [26.1330, 91.7105],
+      [26.1365, 91.7050]
     ],
     timesteps: {
       NOW: { riskState: "NORMAL", status: "clear", waterDepthM: 0.08, risk: "low", drainageStressPct: 52, timeToCritical: "2 hr 45 min" },
@@ -591,11 +631,19 @@ export const ROAD_SEGMENTS: RoadSegment[] = [
     name: "VIP Road Six Mile Bypass (Elevated Ridge)",
     description: "High-elevation northern ridge corridor safely skirting depressed GS Road basins.",
     path: [
-      [26.1880, 91.7745],
-      [26.1750, 91.8020],
-      [26.1550, 91.8150],
-      [26.1410, 91.8190],
-      [26.1320, 91.8110]
+      [26.1815, 91.8055],
+      [26.1790, 91.8065],
+      [26.1760, 91.8075],
+      [26.1725, 91.8085],
+      [26.1680, 91.8100],
+      [26.1630, 91.8115],
+      [26.1580, 91.8130],
+      [26.1520, 91.8145],
+      [26.1470, 91.8160],
+      [26.1420, 91.8170],
+      [26.1380, 91.8165],
+      [26.1355, 91.8150],
+      [26.1330, 91.8125]
     ],
     timesteps: {
       NOW: { riskState: "NORMAL", status: "clear", waterDepthM: 0.02, risk: "low", drainageStressPct: 24, timeToCritical: ">3 hrs" },
@@ -609,9 +657,11 @@ export const ROAD_SEGMENTS: RoadSegment[] = [
     name: "NH 27 Southern Bypass East",
     description: "Grade-separated national highway with high-capacity drainage shoulders.",
     path: [
-      [26.1280, 91.7980],
-      [26.1230, 91.8100],
-      [26.1180, 91.8220]
+      [26.1165, 91.8250],
+      [26.1155, 91.8200],
+      [26.1148, 91.8120],
+      [26.1142, 91.8040],
+      [26.1140, 91.7950]
     ],
     timesteps: {
       NOW: { riskState: "NORMAL", status: "clear", waterDepthM: 0.02, risk: "low", drainageStressPct: 22, timeToCritical: ">3 hrs" },
@@ -625,9 +675,11 @@ export const ROAD_SEGMENTS: RoadSegment[] = [
     name: "NH 27 Southern Bypass Central",
     description: "Elevated southern bypass link avoiding Hatigaon valley basins.",
     path: [
-      [26.1260, 91.7650],
-      [26.1280, 91.7820],
-      [26.1280, 91.7980]
+      [26.1140, 91.7950],
+      [26.1142, 91.7850],
+      [26.1148, 91.7750],
+      [26.1155, 91.7650],
+      [26.1168, 91.7510]
     ],
     timesteps: {
       NOW: { riskState: "NORMAL", status: "clear", waterDepthM: 0.03, risk: "low", drainageStressPct: 26, timeToCritical: ">3 hrs" },
@@ -641,10 +693,13 @@ export const ROAD_SEGMENTS: RoadSegment[] = [
     name: "NH 27 Southern Bypass West",
     description: "Expressway section from Jalukbari to ISBT.",
     path: [
-      [26.1510, 91.6885],
-      [26.1365, 91.7050],
-      [26.1210, 91.7390],
-      [26.1260, 91.7650]
+      [26.1168, 91.7510],
+      [26.1185, 91.7420],
+      [26.1205, 91.7330],
+      [26.1235, 91.7240],
+      [26.1275, 91.7160],
+      [26.1320, 91.7095],
+      [26.1365, 91.7050]
     ],
     timesteps: {
       NOW: { riskState: "NORMAL", status: "clear", waterDepthM: 0.03, risk: "low", drainageStressPct: 25, timeToCritical: ">3 hrs" },
@@ -658,10 +713,14 @@ export const ROAD_SEGMENTS: RoadSegment[] = [
     name: "MG Road (Brahmaputra Riverfront Corridor)",
     description: "Riverfront embankment road protected by natural river levee gradient.",
     path: [
-      [26.1758, 91.7285],
-      [26.1835, 91.7410],
-      [26.1850, 91.7495],
-      [26.1915, 91.7585]
+      [26.1925, 91.7550],
+      [26.1915, 91.7500],
+      [26.1895, 91.7450],
+      [26.1865, 91.7400],
+      [26.1830, 91.7350],
+      [26.1800, 91.7300],
+      [26.1770, 91.7250],
+      [26.1740, 91.7200]
     ],
     timesteps: {
       NOW: { riskState: "NORMAL", status: "clear", waterDepthM: 0.04, risk: "low", drainageStressPct: 30, timeToCritical: ">3 hrs" },

@@ -98,6 +98,7 @@ export interface RouteDetail {
   maxDepthM: number;
   status: string;
   notes: string;
+  segmentIds?: string[];
   blockedSegmentsCount?: number;
   floodedSegments?: string[];
   elevationAdvantageM?: number;

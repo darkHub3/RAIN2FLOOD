@@ -388,6 +388,22 @@ export const SafeRouteView: React.FC = () => {
             <p className="text-slate-400 text-[11px] leading-relaxed">
               {activeScenario.normalRoute.notes}
             </p>
+
+            {activeScenario.normalRoute.segmentIds && (
+              <div className="pt-1 border-t border-slate-800/80 text-[10px] font-mono text-slate-400 flex flex-wrap items-center gap-1">
+                <span className="text-slate-500">Corridor:</span>
+                {activeScenario.normalRoute.segmentIds.map((id, idx) => (
+                  <span key={id} className="inline-flex items-center gap-1">
+                    <span className="text-rose-300 font-semibold px-1 py-0.2 rounded bg-rose-950/60 border border-rose-800/40">
+                      {id}
+                    </span>
+                    {idx < activeScenario.normalRoute.segmentIds!.length - 1 && (
+                      <span className="text-slate-600">→</span>
+                    )}
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* LOWER-EXPOSURE ALTERNATIVE ROUTE CARD */}
@@ -437,6 +453,22 @@ export const SafeRouteView: React.FC = () => {
             <p className="text-slate-400 text-[11px] leading-relaxed">
               {activeScenario.safeRoute.notes}
             </p>
+
+            {activeScenario.safeRoute.segmentIds && (
+              <div className="pt-1 border-t border-slate-800/80 text-[10px] font-mono text-slate-400 flex flex-wrap items-center gap-1">
+                <span className="text-slate-500">Corridor:</span>
+                {activeScenario.safeRoute.segmentIds.map((id, idx) => (
+                  <span key={id} className="inline-flex items-center gap-1">
+                    <span className="text-emerald-300 font-semibold px-1 py-0.2 rounded bg-emerald-950/60 border border-emerald-800/40">
+                      {id}
+                    </span>
+                    {idx < activeScenario.safeRoute.segmentIds!.length - 1 && (
+                      <span className="text-slate-600">→</span>
+                    )}
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* PROTOTYPE HONESTY & TERMINOLOGY NOTICE */}

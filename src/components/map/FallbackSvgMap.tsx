@@ -8,7 +8,7 @@ import { TERRAIN_HILLS, FLOW_ACCUMULATION_VECTORS } from '../../data/terrainData
 import { ROAD_SEGMENTS } from '../../data/roads';
 import { ROUTE_SCENARIOS } from '../../data/routes';
 import { DrainageNode, DrainageEdge, RoadRiskState, RoadSegment } from '../../types';
-import { ZoomIn, ZoomOut, RotateCcw, Crosshair } from 'lucide-react';
+import { ZoomIn, ZoomOut, RotateCcw, Crosshair, Layers } from 'lucide-react';
 
 // Guwahati Bounding Box
 const LNG_MIN = 91.665;
@@ -23,6 +23,18 @@ export const projectCoords = (lat: number, lng: number): [number, number] => {
   const y = ((LAT_MAX - lat) / (LAT_MAX - LAT_MIN)) * SVG_HEIGHT;
   return [x, y];
 };
+
+const HOTSPOTS_DATA = [
+  { id: 'FZ-01', name: 'Anil Nagar', lat: 26.1755, lng: 91.7725 },
+  { id: 'FZ-02', name: 'GS Road (Bhangagarh)', lat: 26.1575, lng: 91.7710 },
+  { id: 'FZ-03', name: 'Zoo Road', lat: 26.1650, lng: 91.7830 },
+  { id: 'FZ-04', name: 'Rukminigaon', lat: 26.1395, lng: 91.8000 },
+  { id: 'FZ-05', name: 'Hatigaon - Bhetapara', lat: 26.1340, lng: 91.7790 },
+  { id: 'FZ-06', name: 'Bharalumukh', lat: 26.1735, lng: 91.7265 },
+  { id: 'FZ-07', name: 'Ulubari', lat: 26.1695, lng: 91.7610 },
+  { id: 'FZ-08', name: 'Boragaon Bypass', lat: 26.1350, lng: 91.7080 },
+  { id: 'FZ-09', name: 'Khanapara Basin', lat: 26.1260, lng: 91.8150 },
+];
 
 interface SvgMapProps {
   showRoutes?: boolean;
@@ -46,6 +58,16 @@ export const FallbackSvgMap: React.FC<SvgMapProps> = ({ showRoutes = false }) =>
   const [zoom, setZoom] = useState<number>(1);
   const [pan, setPan] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [hoveredInfo, setHoveredInfo] = useState<string | null>(null);
+  const [isLayersCollapsed, setIsLayersCollapsed] = useState(false);
+
+  // In-Map Layer Control state (Drainage Network default: unchecked/off)
+  const [mapLayers, setMapLayers] = useState({
+    roadRisk: true,
+    drainageNetwork: false,
+    floodExtent: true,
+    hotspots: true,
+    routes: true,
+  });
 
   const activeRoute = ROUTE_SCENARIOS.find((r) => r.id === selectedRouteId) || ROUTE_SCENARIOS[0];
 
@@ -148,6 +170,103 @@ export const FallbackSvgMap: React.FC<SvgMapProps> = ({ showRoutes = false }) =>
             Deepor Beel
           </button>
         </div>
+      </div>
+
+      {/* Floating In-Map Layer Control Widget */}
+      <div className="absolute top-12 left-3 z-20 pointer-events-auto">
+        {isLayersCollapsed ? (
+          <button
+            onClick={() => setIsLayersCollapsed(false)}
+            className="bg-[#0f172a]/90 backdrop-blur-md border border-[#223554] hover:border-cyan-500/50 rounded-lg px-2.5 py-1 shadow-lg flex items-center gap-1.5 text-xs text-slate-200 transition-all font-mono"
+            title="Open Map Layers Control"
+          >
+            <Layers className="w-3.5 h-3.5 text-cyan-400" />
+            <span className="font-semibold text-white text-[11px]">Layers</span>
+          </button>
+        ) : (
+          <div className="bg-[#0f172a]/95 backdrop-blur-md border border-[#223554] rounded-lg p-2.5 shadow-2xl flex flex-col gap-1.5 w-44 text-xs select-none font-mono">
+            <div className="flex items-center justify-between border-b border-slate-700/60 pb-1 text-[10px] text-cyan-400 font-bold uppercase tracking-wider">
+              <div className="flex items-center gap-1.5">
+                <Layers className="w-3.5 h-3.5 text-cyan-400" />
+                <span>MAP LAYERS</span>
+              </div>
+              <button
+                onClick={() => setIsLayersCollapsed(true)}
+                className="text-slate-400 hover:text-white p-0.5 text-xs leading-none"
+                title="Collapse Layers"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-1.5 pt-0.5 text-[11px] font-medium text-slate-200">
+              <label className="flex items-center gap-2 cursor-pointer hover:text-white">
+                <input
+                  type="checkbox"
+                  checked={mapLayers.roadRisk}
+                  onChange={(e) => setMapLayers((prev) => ({ ...prev, roadRisk: e.target.checked }))}
+                  className="rounded border-slate-700 bg-slate-900 text-emerald-500 focus:ring-0 focus:ring-offset-0 w-3.5 h-3.5 cursor-pointer accent-emerald-500"
+                />
+                <span className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
+                  Road Risk
+                </span>
+              </label>
+
+              <label className="flex items-center gap-2 cursor-pointer hover:text-white">
+                <input
+                  type="checkbox"
+                  checked={mapLayers.drainageNetwork}
+                  onChange={(e) => setMapLayers((prev) => ({ ...prev, drainageNetwork: e.target.checked }))}
+                  className="rounded border-slate-700 bg-slate-900 text-cyan-500 focus:ring-0 focus:ring-offset-0 w-3.5 h-3.5 cursor-pointer accent-cyan-500"
+                />
+                <span className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-cyan-400"></span>
+                  Drainage Network
+                </span>
+              </label>
+
+              <label className="flex items-center gap-2 cursor-pointer hover:text-white">
+                <input
+                  type="checkbox"
+                  checked={mapLayers.floodExtent}
+                  onChange={(e) => setMapLayers((prev) => ({ ...prev, floodExtent: e.target.checked }))}
+                  className="rounded border-slate-700 bg-slate-900 text-blue-500 focus:ring-0 focus:ring-offset-0 w-3.5 h-3.5 cursor-pointer accent-blue-500"
+                />
+                <span className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-blue-400"></span>
+                  Flood Extent
+                </span>
+              </label>
+
+              <label className="flex items-center gap-2 cursor-pointer hover:text-white">
+                <input
+                  type="checkbox"
+                  checked={mapLayers.hotspots}
+                  onChange={(e) => setMapLayers((prev) => ({ ...prev, hotspots: e.target.checked }))}
+                  className="rounded border-slate-700 bg-slate-900 text-amber-500 focus:ring-0 focus:ring-offset-0 w-3.5 h-3.5 cursor-pointer accent-amber-500"
+                />
+                <span className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-amber-400"></span>
+                  Hotspots
+                </span>
+              </label>
+
+              <label className="flex items-center gap-2 cursor-pointer hover:text-white">
+                <input
+                  type="checkbox"
+                  checked={mapLayers.routes}
+                  onChange={(e) => setMapLayers((prev) => ({ ...prev, routes: e.target.checked }))}
+                  className="rounded border-slate-700 bg-slate-900 text-teal-500 focus:ring-0 focus:ring-offset-0 w-3.5 h-3.5 cursor-pointer accent-teal-500"
+                />
+                <span className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-teal-400"></span>
+                  Routes
+                </span>
+              </label>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Floating Map Navigation Controls */}
@@ -392,7 +511,7 @@ export const FallbackSvgMap: React.FC<SvgMapProps> = ({ showRoutes = false }) =>
         )}
 
         {/* --- 4. SIMULATED FLOOD DEPTH ZONES (SUBTLE UNDER ROADS) --- */}
-        {activeLayers.floodDepth && (
+        {mapLayers.floodExtent && activeLayers.floodDepth && (
           <g id="flood-zones-layer">
             {FLOOD_ZONES.map((zone) => {
               const zState = zone.timesteps[activeTimeStep];
@@ -438,8 +557,177 @@ export const FallbackSvgMap: React.FC<SvgMapProps> = ({ showRoutes = false }) =>
           </g>
         )}
 
-        {/* --- 5. ROADS & RISK LAYER (PRIMARY VISUAL LAYER) --- */}
-        {activeLayers.roadExposure && (
+        {/* --- 5. DRAINAGE NETWORK (CONDUITS & NODES) - OPTIONAL GIS LAYER (DEFAULT OFF) --- */}
+        {mapLayers.drainageNetwork && activeLayers.drainageNetwork && (
+          <g id="drainage-network-group">
+            <g id="drainage-edges-layer">
+              {DRAINAGE_EDGES.map((edge) => {
+                const eState = edge.timesteps[activeTimeStep];
+                const fromNode = DRAINAGE_NODES.find((n) => n.id === edge.fromNode);
+                const toNode = DRAINAGE_NODES.find((n) => n.id === edge.toNode);
+
+                if (!fromNode || !toNode) return null;
+
+                const [x1, y1] = projectCoords(fromNode.lat, fromNode.lng);
+                const [x2, y2] = projectCoords(toNode.lat, toNode.lng);
+
+                const color = getEdgeColor(eState.status);
+                const isSelected = selectedEdge?.id === edge.id;
+                const isOverloaded = eState.status === 'overloaded' || eState.status === 'critical';
+
+                return (
+                  <g
+                    key={edge.id}
+                    className="cursor-pointer"
+                    onClick={() => setSelectedEdge(edge)}
+                    onMouseEnter={() =>
+                      setHoveredInfo(
+                        `Edge ${edge.id}: ${edge.name} | Flow: ${eState.flowM3s} m³/s | Cap: ${edge.designCapacityM3s} m³/s | Util: ${eState.utilizationPct}%`
+                      )
+                    }
+                    onMouseLeave={() => setHoveredInfo(null)}
+                  >
+                    {/* Invisible fat hit area for easy clicking */}
+                    <line
+                      x1={x1}
+                      y1={y1}
+                      x2={x2}
+                      y2={y2}
+                      stroke="transparent"
+                      strokeWidth="14"
+                    />
+
+                    {/* Highlight ring if selected */}
+                    {isSelected && (
+                      <line
+                        x1={x1}
+                        y1={y1}
+                        x2={x2}
+                        y2={y2}
+                        stroke="#ffffff"
+                        strokeWidth="5"
+                        strokeOpacity="0.8"
+                      />
+                    )}
+
+                    {/* Base Edge Conduit Line (Subtle dashed blue/cyan) */}
+                    <line
+                      x1={x1}
+                      y1={y1}
+                      x2={x2}
+                      y2={y2}
+                      stroke={isOverloaded ? '#f43f5e' : '#0284c7'}
+                      strokeWidth={isSelected ? '2.5' : isOverloaded ? '2.2' : '1.5'}
+                      strokeDasharray="4 3"
+                      strokeLinecap="round"
+                      opacity="0.6"
+                      className={isOverloaded ? 'animate-pulse' : undefined}
+                    />
+
+                    {/* Flow Direction Chevron at Midpoint */}
+                    <circle
+                      cx={(x1 + x2) / 2}
+                      cy={(y1 + y2) / 2}
+                      r="1.8"
+                      fill={color}
+                      opacity="0.7"
+                    />
+                  </g>
+                );
+              })}
+            </g>
+
+            <g id="drainage-nodes-layer">
+              {DRAINAGE_NODES.map((node) => {
+                const nState = node.timesteps[activeTimeStep];
+                const [nx, ny] = projectCoords(node.lat, node.lng);
+                const color = getNodeColor(nState.status);
+                const isSelected = selectedNode?.id === node.id;
+                const isSurcharged = nState.status === 'surcharged' || nState.status === 'critical';
+                const isOutfall = node.type === 'outfall';
+
+                return (
+                  <g
+                    key={node.id}
+                    className="cursor-pointer"
+                    onClick={() => setSelectedNode(node)}
+                    onMouseEnter={() =>
+                      setHoveredInfo(
+                        `Node ${node.id}: ${node.name} (${node.type}) | Inflow: ${nState.incomingFlowM3s} m³/s | Util: ${nState.utilizationPct}% | Status: ${nState.status.toUpperCase()}`
+                      )
+                    }
+                    onMouseLeave={() => setHoveredInfo(null)}
+                  >
+                    {/* Selection Ring */}
+                    {isSelected && (
+                      <circle
+                        cx={nx}
+                        cy={ny}
+                        r="9"
+                        fill="none"
+                        stroke="#ffffff"
+                        strokeWidth="2"
+                        className="animate-spin"
+                      />
+                    )}
+
+                    {/* Surcharge Pulse Animation */}
+                    {isSurcharged && (
+                      <circle
+                        cx={nx}
+                        cy={ny}
+                        r="8"
+                        fill="none"
+                        stroke="#ef4444"
+                        strokeWidth="1.5"
+                        opacity="0.7"
+                        className="animate-ping"
+                      />
+                    )}
+
+                    {/* Outfall diamond vs regular node circle */}
+                    {isOutfall ? (
+                      <polygon
+                        points={`${nx},${ny - 5} ${nx + 5},${ny} ${nx},${ny + 5} ${nx - 5},${ny}`}
+                        fill="#0284c7"
+                        stroke="#38bdf8"
+                        strokeWidth="1.2"
+                      />
+                    ) : (
+                      <circle
+                        cx={nx}
+                        cy={ny}
+                        r={node.type === 'junction' ? 4.5 : 3.5}
+                        fill={color}
+                        stroke="#0b101c"
+                        strokeWidth="1.2"
+                      />
+                    )}
+
+                    {/* Node ID label for major nodes */}
+                    {(isSelected || ['N-003', 'N-012', 'N-014', 'N-022', 'N-030'].includes(node.id)) && (
+                      <text
+                        x={nx}
+                        y={ny - 6}
+                        textAnchor="middle"
+                        fill="#f8fafc"
+                        fontSize="7.5"
+                        fontFamily="JetBrains Mono, monospace"
+                        fontWeight="bold"
+                        className="drop-shadow-md pointer-events-none"
+                      >
+                        {node.id}
+                      </text>
+                    )}
+                  </g>
+                );
+              })}
+            </g>
+          </g>
+        )}
+
+        {/* --- 6. ROADS & RISK LAYER (PRIMARY VISUAL LAYER) --- */}
+        {mapLayers.roadRisk && activeLayers.roadExposure && (
           <g id="roads-layer">
             {ROAD_SEGMENTS.map((road) => {
               const rState = road.timesteps[activeTimeStep];
@@ -540,177 +828,8 @@ export const FallbackSvgMap: React.FC<SvgMapProps> = ({ showRoutes = false }) =>
           </g>
         )}
 
-        {/* --- 6. DRAINAGE EDGES (CONDUITS & CHANNELS) --- */}
-        {activeLayers.drainageNetwork && (
-          <g id="drainage-edges-layer">
-            {DRAINAGE_EDGES.map((edge) => {
-              const eState = edge.timesteps[activeTimeStep];
-              const fromNode = DRAINAGE_NODES.find((n) => n.id === edge.fromNode);
-              const toNode = DRAINAGE_NODES.find((n) => n.id === edge.toNode);
-
-              if (!fromNode || !toNode) return null;
-
-              const [x1, y1] = projectCoords(fromNode.lat, fromNode.lng);
-              const [x2, y2] = projectCoords(toNode.lat, toNode.lng);
-
-              const color = getEdgeColor(eState.status);
-              const isSelected = selectedEdge?.id === edge.id;
-              const isOverloaded = eState.status === 'overloaded' || eState.status === 'critical';
-
-              return (
-                <g
-                  key={edge.id}
-                  className="cursor-pointer"
-                  onClick={() => setSelectedEdge(edge)}
-                  onMouseEnter={() =>
-                    setHoveredInfo(
-                      `Edge ${edge.id}: ${edge.name} | Flow: ${eState.flowM3s} m³/s | Cap: ${edge.designCapacityM3s} m³/s | Util: ${eState.utilizationPct}%`
-                    )
-                  }
-                  onMouseLeave={() => setHoveredInfo(null)}
-                >
-                  {/* Invisible fat hit area for easy clicking */}
-                  <line
-                    x1={x1}
-                    y1={y1}
-                    x2={x2}
-                    y2={y2}
-                    stroke="transparent"
-                    strokeWidth="14"
-                  />
-
-                  {/* Highlight ring if selected */}
-                  {isSelected && (
-                    <line
-                      x1={x1}
-                      y1={y1}
-                      x2={x2}
-                      y2={y2}
-                      stroke="#ffffff"
-                      strokeWidth="5"
-                      strokeOpacity="0.8"
-                    />
-                  )}
-
-                  {/* Base Edge Conduit Line */}
-                  <line
-                    x1={x1}
-                    y1={y1}
-                    x2={x2}
-                    y2={y2}
-                    stroke={color}
-                    strokeWidth={isSelected ? '3.5' : isOverloaded ? '2.8' : '2'}
-                    strokeDasharray={isOverloaded ? '6 3' : undefined}
-                    strokeLinecap="round"
-                    className={isOverloaded ? 'animate-pulse' : undefined}
-                  />
-
-                  {/* Flow Direction Chevron at Midpoint */}
-                  <circle
-                    cx={(x1 + x2) / 2}
-                    cy={(y1 + y2) / 2}
-                    r="2"
-                    fill={color}
-                    opacity="0.8"
-                  />
-                </g>
-              );
-            })}
-          </g>
-        )}
-
-        {/* --- 7. DRAINAGE NODES (INLETS, MANHOLES, OUTFALLS) --- */}
-        {activeLayers.drainageNetwork && (
-          <g id="drainage-nodes-layer">
-            {DRAINAGE_NODES.map((node) => {
-              const nState = node.timesteps[activeTimeStep];
-              const [nx, ny] = projectCoords(node.lat, node.lng);
-              const color = getNodeColor(nState.status);
-              const isSelected = selectedNode?.id === node.id;
-              const isSurcharged = nState.status === 'surcharged' || nState.status === 'critical';
-              const isOutfall = node.type === 'outfall';
-
-              return (
-                <g
-                  key={node.id}
-                  className="cursor-pointer"
-                  onClick={() => setSelectedNode(node)}
-                  onMouseEnter={() =>
-                    setHoveredInfo(
-                      `Node ${node.id}: ${node.name} (${node.type}) | Inflow: ${nState.incomingFlowM3s} m³/s | Util: ${nState.utilizationPct}% | Status: ${nState.status.toUpperCase()}`
-                    )
-                  }
-                  onMouseLeave={() => setHoveredInfo(null)}
-                >
-                  {/* Selection Ring */}
-                  {isSelected && (
-                    <circle
-                      cx={nx}
-                      cy={ny}
-                      r="10"
-                      fill="none"
-                      stroke="#ffffff"
-                      strokeWidth="2"
-                      className="animate-spin"
-                    />
-                  )}
-
-                  {/* Surcharge Pulse Animation */}
-                  {isSurcharged && (
-                    <circle
-                      cx={nx}
-                      cy={ny}
-                      r="9"
-                      fill="none"
-                      stroke="#ef4444"
-                      strokeWidth="1.5"
-                      opacity="0.7"
-                      className="animate-ping"
-                    />
-                  )}
-
-                  {/* Outfall diamond vs regular node circle */}
-                  {isOutfall ? (
-                    <polygon
-                      points={`${nx},${ny - 6} ${nx + 6},${ny} ${nx},${ny + 6} ${nx - 6},${ny}`}
-                      fill="#0284c7"
-                      stroke="#38bdf8"
-                      strokeWidth="1.5"
-                    />
-                  ) : (
-                    <circle
-                      cx={nx}
-                      cy={ny}
-                      r={node.type === 'junction' ? 5.5 : 4}
-                      fill={color}
-                      stroke="#0b101c"
-                      strokeWidth="1.5"
-                    />
-                  )}
-
-                  {/* Node ID label for major nodes */}
-                  {(isSelected || ['N-003', 'N-012', 'N-014', 'N-022', 'N-030'].includes(node.id)) && (
-                    <text
-                      x={nx}
-                      y={ny - 7}
-                      textAnchor="middle"
-                      fill="#f8fafc"
-                      fontSize="8"
-                      fontFamily="JetBrains Mono, monospace"
-                      fontWeight="bold"
-                      className="drop-shadow-md pointer-events-none"
-                    >
-                      {node.id}
-                    </text>
-                  )}
-                </g>
-              );
-            })}
-          </g>
-        )}
-
-        {/* --- 8. SAFE ROUTING DEMO OVERLAY (IF ENABLED) --- */}
-        {showRoutes && activeRoute && (
+        {/* --- 7. SAFE ROUTING DEMO OVERLAY (ON TOP OF ROADS) --- */}
+        {showRoutes && mapLayers.routes && activeRoute && (
           <g id="routing-overlay-layer">
             {/* Normal Route (Direct, Flood Hazard) */}
             {activeRoute.normalRoute.path.length > 0 && (
@@ -724,11 +843,25 @@ export const FallbackSvgMap: React.FC<SvgMapProps> = ({ showRoutes = false }) =>
                     .join(' ')}
                   fill="none"
                   stroke="#ef4444"
-                  strokeWidth="4"
-                  strokeDasharray="8 4"
+                  strokeWidth="4.5"
+                  strokeDasharray="8 6"
                   strokeLinecap="round"
                   className="animate-pulse"
                 />
+
+                {/* Midpoint Callout Badge */}
+                {(() => {
+                  const midIdx = Math.floor(activeRoute.normalRoute.path.length / 2);
+                  const [bx, by] = projectCoords(activeRoute.normalRoute.path[midIdx][0], activeRoute.normalRoute.path[midIdx][1]);
+                  return (
+                    <g transform={`translate(${bx - 95}, ${by - 12})`} className="pointer-events-none">
+                      <rect width="190" height="20" rx="6" fill="#0f172a" stroke="#ef4444" strokeWidth="1.5" />
+                      <text x="95" y="13" textAnchor="middle" fill="#fca5a5" fontSize="8" fontWeight="bold" fontFamily="Inter, sans-serif">
+                        ⛔ ROUTE BLOCKED BY FLOOD RISK
+                      </text>
+                    </g>
+                  );
+                })()}
               </g>
             )}
 
@@ -744,9 +877,23 @@ export const FallbackSvgMap: React.FC<SvgMapProps> = ({ showRoutes = false }) =>
                     .join(' ')}
                   fill="none"
                   stroke="#10b981"
-                  strokeWidth="5"
+                  strokeWidth="5.5"
                   strokeLinecap="round"
                 />
+
+                {/* Midpoint Callout Badge */}
+                {(() => {
+                  const midIdx = Math.floor(activeRoute.safeRoute.path.length / 2);
+                  const [sx, sy] = projectCoords(activeRoute.safeRoute.path[midIdx][0], activeRoute.safeRoute.path[midIdx][1]);
+                  return (
+                    <g transform={`translate(${sx - 95}, ${sy - 12})`} className="pointer-events-none">
+                      <rect width="190" height="20" rx="6" fill="#064e3b" stroke="#10b981" strokeWidth="1.5" />
+                      <text x="95" y="13" textAnchor="middle" fill="#a7f3d0" fontSize="8" fontWeight="bold" fontFamily="Inter, sans-serif">
+                        ✓ LOWER FLOOD EXPOSURE
+                      </text>
+                    </g>
+                  );
+                })()}
               </g>
             )}
 
@@ -770,6 +917,30 @@ export const FallbackSvgMap: React.FC<SvgMapProps> = ({ showRoutes = false }) =>
                 </>
               );
             })()}
+          </g>
+        )}
+
+        {/* --- 8. SMALL HISTORICAL FLOOD HOTSPOT WARNING MARKERS (⚠️) --- */}
+        {mapLayers.hotspots && (
+          <g id="hotspots-layer">
+            {HOTSPOTS_DATA.map((spot) => {
+              const [hx, hy] = projectCoords(spot.lat, spot.lng);
+              return (
+                <g
+                  key={spot.id}
+                  transform={`translate(${hx - 8}, ${hy - 8})`}
+                  className="cursor-pointer"
+                  onClick={() => centerOnCoord(spot.lat, spot.lng)}
+                  onMouseEnter={() => setHoveredInfo(`Hotspot: ${spot.name} (Click to inspect)`)}
+                  onMouseLeave={() => setHoveredInfo(null)}
+                >
+                  <rect width="16" height="16" rx="4" fill="#ef4444" stroke="#ffffff" strokeWidth="1.5" />
+                  <text x="8" y="12" textAnchor="middle" fill="#ffffff" fontSize="10" fontWeight="bold">
+                    ⚠
+                  </text>
+                </g>
+              );
+            })}
           </g>
         )}
       </svg>

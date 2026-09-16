@@ -79,7 +79,7 @@ export const SimulationProvider: React.FC<{ children: ReactNode }> = ({ children
     rainfallNowcast: true,
     predictedFloodZones: true,
     waterDepth: true,
-    drainageNetwork: true,
+    drainageNetwork: false,
     historicalHotspots: true,
     roadNetwork: true,
     floodRisk: true,

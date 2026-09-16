@@ -19,7 +19,8 @@ import {
   Clock,
   ShieldCheck,
   Ban,
-  Bus
+  Bus,
+  Layers
 } from 'lucide-react';
 
 interface GisMapProps {
@@ -34,6 +35,16 @@ export const GisMap: React.FC<GisMapProps> = ({ showRoutes = true }) => {
 
   const [isKhanaparaCardDismissed, setIsKhanaparaCardDismissed] = useState(false);
   const [isTimerCollapsed, setIsTimerCollapsed] = useState(false);
+  const [isLayersCollapsed, setIsLayersCollapsed] = useState(false);
+
+  // In-Map Layer Control state (Drainage Network default: unchecked/off)
+  const [mapLayers, setMapLayers] = useState({
+    roadRisk: true,
+    drainageNetwork: false,
+    floodExtent: true,
+    hotspots: true,
+    routes: true,
+  });
 
   const {
     activeTimeStep,
@@ -197,7 +208,7 @@ export const GisMap: React.FC<GisMapProps> = ({ showRoutes = true }) => {
     // ==========================================
     // B. SUBTLE SEMI-TRANSPARENT FLOOD-DEPTH POLYGONS (Subordinate to roads)
     // ==========================================
-    const isFloodActive = activeLayers.predictedFloodZones !== false || activeLayers.waterDepth !== false || activeLayers.rainfallNowcast !== false;
+    const isFloodActive = mapLayers.floodExtent && (activeLayers.predictedFloodZones !== false || activeLayers.waterDepth !== false || activeLayers.rainfallNowcast !== false);
 
     if (isFloodActive) {
       FLOOD_ZONES.forEach((zone) => {
@@ -258,10 +269,10 @@ export const GisMap: React.FC<GisMapProps> = ({ showRoutes = true }) => {
     }
 
     // ==========================================
-    // C. DRAINAGE NETWORK (CONDUITS & NODES)
+    // C. DRAINAGE NETWORK (SEPARATE OPTIONAL GIS LAYER - DEFAULT OFF)
     // ==========================================
-    if (activeLayers.drainageNetwork !== false) {
-      // Conduits
+    if (mapLayers.drainageNetwork && activeLayers.drainageNetwork !== false) {
+      // Conduits - subtle cyan/blue dashed style
       DRAINAGE_EDGES.slice(0, 36).forEach((edge) => {
         const from = DRAINAGE_NODES.find((n) => n.id === edge.fromNode);
         const to = DRAINAGE_NODES.find((n) => n.id === edge.toNode);
@@ -274,10 +285,10 @@ export const GisMap: React.FC<GisMapProps> = ({ showRoutes = true }) => {
             [to.lat, to.lng],
           ],
           {
-            color: isOverloaded ? '#f43f5e' : '#38bdf8',
-            weight: isOverloaded ? 2.5 : 1.8,
-            opacity: 0.65,
-            dashArray: '4, 4',
+            color: isOverloaded ? '#f43f5e' : '#0284c7',
+            weight: isOverloaded ? 2.2 : 1.6,
+            opacity: 0.55,
+            dashArray: '3, 4',
           }
         );
         conduitLine.bindTooltip(
@@ -291,16 +302,16 @@ export const GisMap: React.FC<GisMapProps> = ({ showRoutes = true }) => {
         overlayGroup.addLayer(conduitLine);
       });
 
-      // Manholes (green rings) & Outfalls (purple rings)
+      // Manholes & Outfalls
       DRAINAGE_NODES.slice(0, 24).forEach((node) => {
         const isOutfall = node.type === 'outfall';
         const isSurcharged = node.timesteps[activeTimeStep].status === 'surcharged' || node.timesteps[activeTimeStep].status === 'critical';
         const circle = L.circleMarker([node.lat, node.lng], {
-          radius: isOutfall ? 5 : isSurcharged ? 5 : 3.5,
-          color: isOutfall ? '#c084fc' : isSurcharged ? '#ef4444' : '#34d399',
-          weight: 1.5,
+          radius: isOutfall ? 4.5 : isSurcharged ? 4.5 : 3,
+          color: isOutfall ? '#c084fc' : isSurcharged ? '#ef4444' : '#38bdf8',
+          weight: 1.2,
           fillColor: '#090e18',
-          fillOpacity: 0.9,
+          fillOpacity: 0.85,
         });
         circle.bindTooltip(
           `<div class="font-sans text-xs">
@@ -317,7 +328,7 @@ export const GisMap: React.FC<GisMapProps> = ({ showRoutes = true }) => {
     // ==========================================
     // D. ROAD RISK (PRIMARY MAP LAYER)
     // ==========================================
-    if (activeLayers.roadNetwork !== false) {
+    if (mapLayers.roadRisk && activeLayers.roadNetwork !== false) {
       ROAD_SEGMENTS.forEach((road) => {
         const rState = road.timesteps[activeTimeStep];
         const riskState = rState.riskState;
@@ -435,7 +446,7 @@ export const GisMap: React.FC<GisMapProps> = ({ showRoutes = true }) => {
     // ==========================================
     // E. ROUTES (NORMAL MUTED/RED & ALTERNATIVE CYAN/GREEN)
     // ==========================================
-    if (showRoutes && activeRoute) {
+    if (showRoutes && mapLayers.routes && activeRoute) {
       // 1. Normal Route (Muted / Red route, traverses through inundated corridors)
       if (activeRoute.normalRoute.path.length > 0) {
         const normalLine = L.polyline(activeRoute.normalRoute.path, {
@@ -585,7 +596,7 @@ export const GisMap: React.FC<GisMapProps> = ({ showRoutes = true }) => {
     // ==========================================
     // F. SMALL HISTORICAL FLOOD HOTSPOT WARNING MARKERS (⚠️)
     // ==========================================
-    if (activeLayers.historicalHotspots !== false) {
+    if (mapLayers.hotspots && activeLayers.historicalHotspots !== false) {
       const hotspotsData = [
         { id: 'FZ-01', name: 'Anil Nagar', lat: 26.1755, lng: 91.7725 },
         { id: 'FZ-02', name: 'GS Road (Bhangagarh)', lat: 26.1575, lng: 91.7710 },
@@ -681,6 +692,7 @@ export const GisMap: React.FC<GisMapProps> = ({ showRoutes = true }) => {
     selectedRouteId,
     showRoutes,
     selectedHotspotId,
+    mapLayers,
   ]);
 
   // Controls
@@ -697,6 +709,103 @@ export const GisMap: React.FC<GisMapProps> = ({ showRoutes = true }) => {
         <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-[#0b1320]/80 backdrop-blur-md border border-[#1e2f49] flex items-center justify-center shadow-lg text-slate-300">
           <Compass className="w-4 h-4 sm:w-5 sm:h-5 text-cyan-400" />
         </div>
+      </div>
+
+      {/* 1b. FLOATING IN-MAP LAYER CONTROL (TOP-LEFT) */}
+      <div className="absolute top-2.5 left-12 sm:top-4 sm:left-14 z-[1000] pointer-events-auto">
+        {isLayersCollapsed ? (
+          <button
+            onClick={() => setIsLayersCollapsed(false)}
+            className="bg-[#0b1322]/90 backdrop-blur-md border border-[#1e2f49] hover:border-cyan-500/50 rounded-xl px-2.5 py-1.5 shadow-2xl flex items-center gap-1.5 text-xs text-slate-200 transition-all"
+            title="Open Map Layers Control"
+          >
+            <Layers className="w-3.5 h-3.5 text-cyan-400" />
+            <span className="font-semibold text-white text-[11px]">Layers</span>
+          </button>
+        ) : (
+          <div className="bg-[#0b1322]/95 backdrop-blur-md border border-[#1e2f49] rounded-xl p-2.5 shadow-2xl flex flex-col gap-1.5 w-44 text-xs select-none">
+            <div className="flex items-center justify-between border-b border-slate-700/60 pb-1 text-[10px] font-mono text-cyan-400 font-bold uppercase tracking-wider">
+              <div className="flex items-center gap-1.5">
+                <Layers className="w-3.5 h-3.5 text-cyan-400" />
+                <span>MAP LAYERS</span>
+              </div>
+              <button
+                onClick={() => setIsLayersCollapsed(true)}
+                className="text-slate-400 hover:text-white p-0.5 text-xs leading-none"
+                title="Collapse Layers"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-1.5 pt-0.5 text-[11px] font-medium text-slate-200">
+              <label className="flex items-center gap-2 cursor-pointer hover:text-white">
+                <input
+                  type="checkbox"
+                  checked={mapLayers.roadRisk}
+                  onChange={(e) => setMapLayers((prev) => ({ ...prev, roadRisk: e.target.checked }))}
+                  className="rounded border-slate-700 bg-slate-900 text-emerald-500 focus:ring-0 focus:ring-offset-0 w-3.5 h-3.5 cursor-pointer accent-emerald-500"
+                />
+                <span className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
+                  Road Risk
+                </span>
+              </label>
+
+              <label className="flex items-center gap-2 cursor-pointer hover:text-white">
+                <input
+                  type="checkbox"
+                  checked={mapLayers.drainageNetwork}
+                  onChange={(e) => setMapLayers((prev) => ({ ...prev, drainageNetwork: e.target.checked }))}
+                  className="rounded border-slate-700 bg-slate-900 text-cyan-500 focus:ring-0 focus:ring-offset-0 w-3.5 h-3.5 cursor-pointer accent-cyan-500"
+                />
+                <span className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-cyan-400"></span>
+                  Drainage Network
+                </span>
+              </label>
+
+              <label className="flex items-center gap-2 cursor-pointer hover:text-white">
+                <input
+                  type="checkbox"
+                  checked={mapLayers.floodExtent}
+                  onChange={(e) => setMapLayers((prev) => ({ ...prev, floodExtent: e.target.checked }))}
+                  className="rounded border-slate-700 bg-slate-900 text-blue-500 focus:ring-0 focus:ring-offset-0 w-3.5 h-3.5 cursor-pointer accent-blue-500"
+                />
+                <span className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-blue-400"></span>
+                  Flood Extent
+                </span>
+              </label>
+
+              <label className="flex items-center gap-2 cursor-pointer hover:text-white">
+                <input
+                  type="checkbox"
+                  checked={mapLayers.hotspots}
+                  onChange={(e) => setMapLayers((prev) => ({ ...prev, hotspots: e.target.checked }))}
+                  className="rounded border-slate-700 bg-slate-900 text-amber-500 focus:ring-0 focus:ring-offset-0 w-3.5 h-3.5 cursor-pointer accent-amber-500"
+                />
+                <span className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-amber-400"></span>
+                  Hotspots
+                </span>
+              </label>
+
+              <label className="flex items-center gap-2 cursor-pointer hover:text-white">
+                <input
+                  type="checkbox"
+                  checked={mapLayers.routes}
+                  onChange={(e) => setMapLayers((prev) => ({ ...prev, routes: e.target.checked }))}
+                  className="rounded border-slate-700 bg-slate-900 text-teal-500 focus:ring-0 focus:ring-offset-0 w-3.5 h-3.5 cursor-pointer accent-teal-500"
+                />
+                <span className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-teal-400"></span>
+                  Routes
+                </span>
+              </label>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* 2. FLOATING CARD: FLOOD COMPLETION TIMER (TOP-RIGHT) */}
@@ -780,7 +889,7 @@ export const GisMap: React.FC<GisMapProps> = ({ showRoutes = true }) => {
 
       {/* 3. FLOATING INSPECTORS (COMPACT ROAD & HOTSPOT CARDS) */}
       {selectedRoad ? (
-        <div className="absolute top-16 sm:top-24 left-2 sm:left-4 z-[1000] pointer-events-auto max-w-[calc(100%-1rem)] sm:max-w-[280px] animate-fadeIn">
+        <div className={`absolute ${isLayersCollapsed ? 'top-16 sm:top-20' : 'top-48 sm:top-52'} left-2 sm:left-4 z-[1000] pointer-events-auto max-w-[calc(100%-1rem)] sm:max-w-[280px] animate-fadeIn transition-all`}>
           <div className="bg-[#0b1322]/95 backdrop-blur-md border border-cyan-500/50 rounded-xl p-3 shadow-2xl text-xs space-y-2 relative">
             {/* Header */}
             <div className="flex items-start justify-between gap-2 border-b border-slate-700/60 pb-1.5">
@@ -854,7 +963,7 @@ export const GisMap: React.FC<GisMapProps> = ({ showRoutes = true }) => {
           </div>
         </div>
       ) : activeHotspot ? (
-        <div className="absolute top-16 sm:top-24 left-2 sm:left-4 z-[1000] pointer-events-auto max-w-[calc(100%-1rem)] sm:max-w-[280px] animate-fadeIn">
+        <div className={`absolute ${isLayersCollapsed ? 'top-16 sm:top-20' : 'top-48 sm:top-52'} left-2 sm:left-4 z-[1000] pointer-events-auto max-w-[calc(100%-1rem)] sm:max-w-[280px] animate-fadeIn transition-all`}>
           <div className="bg-[#0b1322]/95 backdrop-blur-md border border-amber-500/50 rounded-xl p-3 shadow-2xl text-xs space-y-2 relative">
             <div className="flex items-start justify-between gap-2 border-b border-slate-700/60 pb-1.5">
               <div className="flex items-center gap-1.5">
@@ -911,7 +1020,7 @@ export const GisMap: React.FC<GisMapProps> = ({ showRoutes = true }) => {
           </div>
         </div>
       ) : !isKhanaparaCardDismissed ? (
-        <div className="absolute top-16 sm:top-24 left-2 sm:left-4 z-[1000] pointer-events-auto max-w-[calc(100%-1rem)] sm:max-w-[270px] animate-fadeIn">
+        <div className={`absolute ${isLayersCollapsed ? 'top-16 sm:top-20' : 'top-48 sm:top-52'} left-2 sm:left-4 z-[1000] pointer-events-auto max-w-[calc(100%-1rem)] sm:max-w-[270px] animate-fadeIn transition-all`}>
           <div className="bg-[#0b1322]/95 backdrop-blur-md border border-rose-500/50 rounded-xl p-2.5 sm:p-3 shadow-2xl text-xs space-y-1.5 sm:space-y-2 relative">
             <div className="flex items-start gap-2">
               <div className="w-5 h-5 rounded bg-rose-500/20 border border-rose-500/50 flex items-center justify-center text-rose-400 shrink-0 mt-0.5">
