@@ -1,6 +1,6 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
-import { useSimulation } from '../../context/SimulationContext';
+import { useSimulation, TimeStep } from '../../context/SimulationContext';
 import { DRAINAGE_NODES } from '../../data/drainageNodes';
 import { DRAINAGE_EDGES } from '../../data/drainageEdges';
 import { FLOOD_ZONES } from '../../data/floodZones';
@@ -8,25 +8,38 @@ import { NATURAL_WATERWAYS } from '../../data/naturalDrainage';
 import { ROAD_SEGMENTS } from '../../data/roads';
 import { ROUTE_SCENARIOS } from '../../data/routes';
 import {
-  ZoomIn,
-  ZoomOut,
-  RotateCcw,
+  Play,
+  Pause,
+  Plus,
+  Minus,
+  Crosshair,
+  Compass,
+  AlertTriangle,
+  Info,
+  Clock,
   ShieldCheck,
-  Compass
+  Ban,
+  Bus
 } from 'lucide-react';
 
 interface GisMapProps {
   showRoutes?: boolean;
 }
 
-export const GisMap: React.FC<GisMapProps> = ({ showRoutes = false }) => {
+export const GisMap: React.FC<GisMapProps> = ({ showRoutes = true }) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const tileLayerRef = useRef<L.TileLayer | null>(null);
   const overlayGroupRef = useRef<L.LayerGroup | null>(null);
 
+  const [isKhanaparaCardDismissed, setIsKhanaparaCardDismissed] = useState(false);
+
   const {
     activeTimeStep,
+    setTimeStep,
+    isPlaying,
+    runNowcast,
+    pauseNowcast,
     activeLayers,
     baseMapMode,
     selectedNode,
@@ -36,60 +49,12 @@ export const GisMap: React.FC<GisMapProps> = ({ showRoutes = false }) => {
     selectedRoad,
     setSelectedRoad,
     selectedRouteId,
+    targetLocation,
   } = useSimulation();
 
   const activeRoute = ROUTE_SCENARIOS.find((r) => r.id === selectedRouteId) || ROUTE_SCENARIOS[0];
 
-  // Hotspot locations in Guwahati
-  const hotspots: { name: string; lat: number; lng: number; zoom?: number }[] = [
-    { name: 'Anil Nagar / Nabin Nagar', lat: 26.1755, lng: 91.7725, zoom: 15 },
-    { name: 'Bhangagarh', lat: 26.1575, lng: 91.7710, zoom: 15 },
-    { name: 'Zoo Road', lat: 26.1650, lng: 91.7830, zoom: 15 },
-    { name: 'Bharalumukh', lat: 26.1735, lng: 91.7265, zoom: 14 },
-    { name: 'Silsako Beel', lat: 26.1530, lng: 91.8150, zoom: 14 },
-    { name: 'Deepor Beel', lat: 26.1280, lng: 91.6780, zoom: 13 },
-    { name: 'Dispur', lat: 26.1420, lng: 91.7920, zoom: 14 },
-    { name: 'Khanapara', lat: 26.1180, lng: 91.8220, zoom: 14 },
-    { name: 'Jalukbari', lat: 26.1510, lng: 91.6885, zoom: 14 },
-  ];
-
-  // Depth-based color ramp matching the exact user specifications
-  const getFloodColors = (depthM: number) => {
-    if (depthM > 0.60) {
-      // Critical depth: Red / Magenta
-      return { fill: '#ef4444', stroke: '#dc2626', opacity: 0.65, label: 'Critical (>0.60m)' };
-    }
-    if (depthM > 0.30) {
-      // High depth: Orange
-      return { fill: '#f97316', stroke: '#ea580c', opacity: 0.55, label: 'High (0.30–0.60m)' };
-    }
-    if (depthM > 0.15) {
-      // Moderate depth: Yellow
-      return { fill: '#eab308', stroke: '#ca8a04', opacity: 0.45, label: 'Moderate (0.15–0.30m)' };
-    }
-    // Low depth: Light Blue / Cyan
-    return { fill: '#06b6d4', stroke: '#0891b2', opacity: 0.38, label: 'Low (<0.15m)' };
-  };
-
-  const getEdgeColor = (status: string): string => {
-    switch (status) {
-      case 'critical': return '#ef4444';
-      case 'overloaded': return '#f97316';
-      case 'warning': return '#eab308';
-      default: return '#06b6d4';
-    }
-  };
-
-  const getNodeColor = (status: string): string => {
-    switch (status) {
-      case 'critical': return '#dc2626';
-      case 'surcharged': return '#ef4444';
-      case 'warning': return '#eab308';
-      default: return '#10b981';
-    }
-  };
-
-  // 1. Initialize Leaflet map instance (React 18 StrictMode resistant)
+  // 1. Initialize Leaflet Map Instance (React 18 StrictMode resistant)
   useEffect(() => {
     if (!mapContainerRef.current) return;
 
@@ -98,12 +63,14 @@ export const GisMap: React.FC<GisMapProps> = ({ showRoutes = false }) => {
     }
 
     if (!mapInstanceRef.current) {
+      // Centered directly on Guwahati's Khanapara-GS Road corridor matching reference
       const map = L.map(mapContainerRef.current, {
-        center: [26.1540, 91.7650], // Centered on Guwahati pilot corridor
-        zoom: 13,
+        center: [26.1450, 91.7850],
+        zoom: 13.2,
         minZoom: 10,
         maxZoom: 18,
         zoomControl: false,
+        attributionControl: false,
       });
 
       const overlayGroup = L.layerGroup().addTo(map);
@@ -126,7 +93,7 @@ export const GisMap: React.FC<GisMapProps> = ({ showRoutes = false }) => {
     };
   }, []);
 
-  // 2. Basemap tile switcher: CartoDB Dark Matter | OSM | Esri World Imagery
+  // 2. Basemap Switcher (Default: High-Resolution Satellite)
   useEffect(() => {
     const map = mapInstanceRef.current;
     if (!map) return;
@@ -137,32 +104,42 @@ export const GisMap: React.FC<GisMapProps> = ({ showRoutes = false }) => {
     }
 
     let url = '';
-    let attribution = '';
+    let maxZoom = 19;
+    let subdomains: string | string[] = 'abcd';
 
-    if (baseMapMode === 'satellite') {
-      // High-resolution Esri World Imagery showing actual Guwahati terrain, Brahmaputra river, hills
-      url = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
-      attribution = 'Tiles &copy; Esri &mdash; Guwahati Satellite Basemap';
-    } else if (baseMapMode === 'osm') {
-      // Real OpenStreetMap standard tiles
-      url = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
-      attribution = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
-    } else {
-      // CartoDB Dark Matter (Professional dark GIS theme)
+    if (baseMapMode === 'dark') {
+      // CartoDB Dark Matter
       url = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
-      attribution = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>';
+    } else if (baseMapMode === 'osm') {
+      // OpenStreetMap
+      url = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+      subdomains = 'abc';
+    } else {
+      // High-resolution Satellite (Esri World Imagery) - exactly like reference
+      url = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
+      maxZoom = 18;
     }
 
     const tileLayer = L.tileLayer(url, {
-      attribution,
-      maxZoom: 19,
-      subdomains: 'abcd',
+      maxZoom,
+      subdomains,
     }).addTo(map);
 
     tileLayerRef.current = tileLayer;
   }, [baseMapMode]);
 
-  // 3. Render all 7 Overlays on top of the real Guwahati basemap
+  // 3. Smooth flyTo when targetLocation changes (from search or hotspot click)
+  useEffect(() => {
+    if (targetLocation && mapInstanceRef.current) {
+      mapInstanceRef.current.flyTo(
+        [targetLocation.lat, targetLocation.lng],
+        targetLocation.zoom || 15,
+        { duration: 1.2 }
+      );
+    }
+  }, [targetLocation]);
+
+  // 4. Render All Map Layers & Features Matching Reference Screenshot
   useEffect(() => {
     const map = mapInstanceRef.current;
     const overlayGroup = overlayGroupRef.current;
@@ -170,510 +147,621 @@ export const GisMap: React.FC<GisMapProps> = ({ showRoutes = false }) => {
 
     overlayGroup.clearLayers();
 
-    // A. WATER BODIES (Brahmaputra, Bharalu, Mora Bharalu, Silsako Beel, Deepor Beel, Basistha)
-    if (activeLayers.waterBodies) {
-      NATURAL_WATERWAYS.forEach((nw) => {
-        if (nw.polygon) {
-          const latLngs: [number, number][] = nw.polygon.map((c) => [c[0], c[1]]);
-          const poly = L.polygon(latLngs, {
-            color: '#38bdf8',
-            weight: 1.5,
-            fillColor: '#0284c7',
-            fillOpacity: 0.35,
-          });
-          poly.bindTooltip(
-            `<div class="font-mono text-xs"><strong class="text-sky-300">${nw.name}</strong><br/><span class="text-slate-400 text-[10px]">${nw.capacityRole}</span></div>`,
-            { sticky: true, className: 'leaflet-dark-tooltip' }
-          );
-          overlayGroup.addLayer(poly);
-        } else if (nw.path) {
-          const latLngs: [number, number][] = nw.path.map((c) => [c[0], c[1]]);
-          const line = L.polyline(latLngs, {
-            color: '#38bdf8',
-            weight: 3.5,
-            opacity: 0.85,
-          });
-          line.bindTooltip(
-            `<div class="font-mono text-xs"><strong class="text-sky-300">${nw.name}</strong><br/><span class="text-slate-400 text-[10px]">${nw.notes}</span></div>`,
-            { sticky: true, className: 'leaflet-dark-tooltip' }
-          );
-          overlayGroup.addLayer(line);
-        }
+    // ==========================================
+    // A. BRAHMAPUTRA RIVER WATERWAY & LABEL
+    // ==========================================
+    NATURAL_WATERWAYS.forEach((nw) => {
+      if (nw.polygon) {
+        const latLngs: [number, number][] = nw.polygon.map((c) => [c[0], c[1]]);
+        const poly = L.polygon(latLngs, {
+          color: '#38bdf8',
+          weight: 1.5,
+          fillColor: '#0284c7',
+          fillOpacity: 0.35,
+        });
+        overlayGroup.addLayer(poly);
+      }
+    });
+
+    // Slanted "Brahmaputra River" text marker directly on river bend (as in reference)
+    const riverLabelIcon = L.divIcon({
+      className: 'river-label-marker',
+      html: `
+        <div style="
+          transform: rotate(-32deg);
+          color: #7dd3fc;
+          font-family: 'Inter', sans-serif;
+          font-size: 13px;
+          font-weight: 600;
+          letter-spacing: 2px;
+          text-shadow: 0 0 8px rgba(0,0,0,0.9), 0 2px 4px rgba(0,0,0,0.8);
+          opacity: 0.85;
+          pointer-events: none;
+          white-space: nowrap;
+        ">
+          Brahmaputra River
+        </div>
+      `,
+      iconSize: [160, 30],
+      iconAnchor: [80, 15],
+    });
+    const riverMarker = L.marker([26.1950, 91.7380], { icon: riverLabelIcon });
+    overlayGroup.addLayer(riverMarker);
+
+    // ==========================================
+    // B. MULTI-LAYER THERMAL GRADIENT FLOOD INUNDATION OVERLAY
+    // (Generates the smooth Blue -> Cyan -> Yellow -> Orange -> Red heatmap)
+    // ==========================================
+    const isFloodActive = activeLayers.predictedFloodZones !== false || activeLayers.waterDepth !== false || activeLayers.rainfallNowcast !== false;
+
+    if (isFloodActive) {
+      // Define thermal gradient clusters for Guwahati's primary lowlands
+      const thermalClusters = [
+        { center: [26.1260, 91.8150], maxR: 1600, name: 'Khanapara Basin' },
+        { center: [26.1395, 91.7950], maxR: 1800, name: 'Rukminigaon / Down Town' },
+        { center: [26.1620, 91.7780], maxR: 1700, name: 'Zoo Road Corridor' },
+        { center: [26.1550, 91.7680], maxR: 1500, name: 'GS Road (Bhangagarh)' },
+        { center: [26.1730, 91.7720], maxR: 1400, name: 'Anil Nagar Lowland' },
+      ];
+
+      // Multiplier depending on timestep
+      const timeScale =
+        activeTimeStep === 'NOW'
+          ? 0.7
+          : activeTimeStep === '+1HR'
+          ? 0.9
+          : activeTimeStep === '+2HR'
+          ? 1.15
+          : 1.35;
+
+      thermalClusters.forEach((cluster) => {
+        const r = cluster.maxR * timeScale;
+
+        // Outer halo: Deep Blue / Cyan
+        const outerCircle = L.circle([cluster.center[0], cluster.center[1]], {
+          radius: r,
+          fillColor: '#0284c7',
+          fillOpacity: 0.38,
+          stroke: true,
+          color: '#38bdf8',
+          weight: 1,
+          opacity: 0.5,
+        });
+        overlayGroup.addLayer(outerCircle);
+
+        // Mid-outer: Bright Cyan / Sky
+        const midOuterCircle = L.circle([cluster.center[0], cluster.center[1]], {
+          radius: r * 0.75,
+          fillColor: '#06b6d4',
+          fillOpacity: 0.48,
+          stroke: false,
+        });
+        overlayGroup.addLayer(midOuterCircle);
+
+        // Mid: Yellow / Amber
+        const midCircle = L.circle([cluster.center[0], cluster.center[1]], {
+          radius: r * 0.55,
+          fillColor: '#eab308',
+          fillOpacity: 0.58,
+          stroke: false,
+        });
+        overlayGroup.addLayer(midCircle);
+
+        // Mid-inner: Orange
+        const innerCircle = L.circle([cluster.center[0], cluster.center[1]], {
+          radius: r * 0.38,
+          fillColor: '#f97316',
+          fillOpacity: 0.68,
+          stroke: false,
+        });
+        overlayGroup.addLayer(innerCircle);
+
+        // Epicenter Core: Red / Magenta
+        const coreCircle = L.circle([cluster.center[0], cluster.center[1]], {
+          radius: r * 0.22,
+          fillColor: '#ef4444',
+          fillOpacity: 0.78,
+          stroke: true,
+          color: '#dc2626',
+          weight: 1.5,
+          opacity: 0.8,
+        });
+        overlayGroup.addLayer(coreCircle);
       });
     }
 
-    // B. BASE ROADS (When 'roads' layer is active, ensures roads are clearly visible)
-    if (activeLayers.roads) {
-      ROAD_SEGMENTS.forEach((road) => {
-        const latLngs: [number, number][] = road.path.map((c) => [c[0], c[1]]);
-        const baseRoadLine = L.polyline(latLngs, {
-          color: '#475569',
-          weight: 2.5,
-          opacity: 0.65,
+    // ==========================================
+    // C. HISTORICAL FLOOD HOTSPOT WARNING MARKERS (⚠️)
+    // ==========================================
+    if (activeLayers.historicalHotspots !== false) {
+      const hotspotsData = [
+        { name: 'Khanapara Crossing', lat: 26.1260, lng: 91.8150 },
+        { name: 'Zoo Road', lat: 26.1650, lng: 91.7830 },
+        { name: 'GS Road', lat: 26.1520, lng: 91.7760 },
+        { name: 'Rukminigaon', lat: 26.1395, lng: 91.7980 },
+        { name: 'Anil Nagar', lat: 26.1755, lng: 91.7725 },
+      ];
+
+      hotspotsData.forEach((spot) => {
+        const hazardIcon = L.divIcon({
+          className: 'hazard-pulse-marker',
+          html: `
+            <div style="position: relative; display: flex; align-items: center; justify-content: center;">
+              <span style="
+                position: absolute;
+                width: 24px;
+                height: 24px;
+                border-radius: 9999px;
+                background: rgba(239, 68, 68, 0.4);
+                animation: ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;
+              "></span>
+              <div style="
+                position: relative;
+                width: 22px;
+                height: 22px;
+                background: #ef4444;
+                border: 2px solid #ffffff;
+                border-radius: 6px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.6);
+                cursor: pointer;
+              ">
+                <span style="color: white; font-size: 12px; font-weight: bold; line-height: 1;">!</span>
+              </div>
+            </div>
+          `,
+          iconSize: [24, 24],
+          iconAnchor: [12, 12],
         });
-        baseRoadLine.bindTooltip(
-          `<div class="font-mono text-xs font-bold text-slate-200">${road.name}</div>`,
+
+        const marker = L.marker([spot.lat, spot.lng], { icon: hazardIcon });
+        marker.bindTooltip(
+          `<div class="font-sans text-xs"><strong>${spot.name}</strong><br/><span class="text-rose-400">High Risk Flood Hotspot</span></div>`,
           { sticky: true, className: 'leaflet-dark-tooltip' }
         );
-        overlayGroup.addLayer(baseRoadLine);
+        overlayGroup.addLayer(marker);
       });
     }
 
-    // C. SIMULATED FLOOD DEPTH & FLOOD RISK OVERLAY
-    if (activeLayers.floodDepth || activeLayers.floodRisk) {
-      FLOOD_ZONES.forEach((zone) => {
-        const zState = zone.timesteps[activeTimeStep];
-        const colors = getFloodColors(zState.depthM);
-        const latLngs: [number, number][] = zone.polygon.map((c) => [c[0], c[1]]);
+    // ==========================================
+    // D. ROAD NETWORK (AFFECTED RED CORRIDOR & SAFE GREEN ROUTE)
+    // ==========================================
+    if (activeLayers.roadNetwork !== false) {
+      // 1. Red Affected Corridor (traversing through Khanapara & GS Road)
+      const affectedPath: [number, number][] = [
+        [26.1210, 91.8220],
+        [26.1260, 91.8150],
+        [26.1320, 91.8110],
+        [26.1390, 91.7990],
+        [26.1480, 91.7875],
+        [26.1585, 91.7685],
+      ];
 
-        const isRiskHighlighted = activeLayers.floodRisk && (zState.risk === 'high' || zState.risk === 'critical');
-
-        const floodPoly = L.polygon(latLngs, {
-          color: isRiskHighlighted ? '#ef4444' : colors.stroke,
-          weight: isRiskHighlighted ? 2.5 : 1.5,
-          fillColor: colors.fill,
-          fillOpacity: colors.opacity,
-          dashArray: isRiskHighlighted ? '6, 3' : undefined,
-        });
-
-        // Hover tooltip
-        floodPoly.bindTooltip(
-          `<div class="font-mono text-xs text-slate-100 p-1">
-            <div class="font-bold text-cyan-300">${zone.name}</div>
-            <div class="text-[10px] text-slate-300 mt-0.5">Simulated Depth: <strong class="text-white">${zState.depthM.toFixed(2)} m</strong></div>
-            <div class="text-[10px] uppercase font-bold" style="color:${colors.stroke}">Risk: ${zState.risk.toUpperCase()}</div>
-            <div class="text-[9px] text-slate-400 mt-0.5">Bottleneck: ${zState.primaryBottleneck}</div>
-          </div>`,
-          { sticky: true, className: 'leaflet-dark-tooltip' }
-        );
-
-        // Click popup
-        floodPoly.bindPopup(
-          `<div class="font-mono text-xs text-slate-100 p-1 min-w-[220px]">
-            <div class="flex items-center justify-between border-b border-slate-700 pb-1 mb-1.5">
-              <span class="font-bold text-cyan-300 text-[12px]">${zone.name}</span>
-              <span class="text-[9px] px-1.5 py-0.5 rounded font-bold uppercase" style="background:${colors.fill}33; color:${colors.stroke}; border:1px solid ${colors.stroke}88;">
-                ${zState.risk}
-              </span>
-            </div>
-            <div class="space-y-1 text-[11px]">
-              <div class="flex justify-between text-slate-300">
-                <span>Simulated Depth:</span>
-                <strong class="text-white">${zState.depthM.toFixed(2)} m</strong>
-              </div>
-              <div class="flex justify-between text-slate-300">
-                <span>Affected Area:</span>
-                <strong class="text-slate-200">${zState.affectedAreaHa} ha</strong>
-              </div>
-              <div class="flex justify-between text-slate-300">
-                <span>Primary Bottleneck:</span>
-                <strong class="text-amber-300 text-[10px] text-right ml-2">${zState.primaryBottleneck}</strong>
-              </div>
-            </div>
-            <div class="mt-2 text-[8px] text-amber-300 uppercase border-t border-slate-800 pt-1">
-              ● Simulated Flood Zone Scenario (${activeTimeStep})
-            </div>
-          </div>`
-        );
-
-        overlayGroup.addLayer(floodPoly);
-      });
-    }
-
-    // D. ROAD EXPOSURE OVERLAY (Watch=Yellow, Flood Risk=Orange, High Exposure=Red)
-    if (activeLayers.roadExposure) {
-      ROAD_SEGMENTS.forEach((road) => {
-        const rState = road.timesteps[activeTimeStep];
-        const isImpassable = rState.status === 'impassable';
-        const isCaution = rState.status === 'caution';
-
-        // Exposure mapping: Watch (Yellow), Flood Risk (Orange), High Exposure (Red)
-        let exposureColor = '#64748b'; // Clear
-        let exposureText = 'Clear';
-        let weight = 3;
-        let dashArray: string | undefined = undefined;
-
-        if (rState.waterDepthM > 0.50 || isImpassable) {
-          exposureColor = '#ef4444'; // Red (High Exposure)
-          exposureText = 'High Exposure';
-          weight = 5.5;
-          dashArray = '8, 5';
-        } else if (rState.waterDepthM >= 0.25) {
-          exposureColor = '#f97316'; // Orange (Flood Risk)
-          exposureText = 'Flood Risk';
-          weight = 4.5;
-        } else if (rState.waterDepthM >= 0.05 || isCaution) {
-          exposureColor = '#eab308'; // Yellow (Watch)
-          exposureText = 'Watch';
-          weight = 4;
-        }
-
-        const isSelected = selectedRoad?.id === road.id;
-        const latLngs: [number, number][] = road.path.map((c) => [c[0], c[1]]);
-
-        const roadLine = L.polyline(latLngs, {
-          color: isSelected ? '#ffffff' : exposureColor,
-          weight: isSelected ? weight + 2 : weight,
-          opacity: 0.95,
-          dashArray,
-        });
-
-        roadLine.on('click', () => {
-          setSelectedRoad(road);
-        });
-
-        // Hover Tooltip
-        roadLine.bindTooltip(
-          `<div class="font-mono text-xs">
-            <strong class="text-white">${road.name}</strong><br/>
-            <span>Exposure: <strong style="color:${exposureColor}">${exposureText.toUpperCase()}</strong></span><br/>
-            <span>Water Depth: <strong class="text-white">${rState.waterDepthM.toFixed(2)} m</strong></span>
-          </div>`,
-          { sticky: true, className: 'leaflet-dark-tooltip' }
-        );
-
-        // Click Popup (Simulated Road Flood Exposure)
-        roadLine.bindPopup(
-          `<div class="font-mono text-xs text-slate-100 p-1 min-w-[220px]">
-            <div class="flex items-center justify-between border-b border-slate-700 pb-1 mb-1.5">
-              <span class="font-bold text-white">${road.name}</span>
-              <span class="text-[9px] px-1.5 py-0.5 rounded font-bold uppercase" style="background:${exposureColor}25; color:${exposureColor}; border:1px solid ${exposureColor}88;">
-                ${exposureText}
-              </span>
-            </div>
-            <div class="space-y-1 text-[11px]">
-              <div class="flex justify-between text-slate-300">
-                <span>Simulated Water Depth:</span>
-                <strong class="text-white">${rState.waterDepthM.toFixed(2)} m</strong>
-              </div>
-              <div class="flex justify-between text-slate-300">
-                <span>Exposure Status:</span>
-                <strong style="color:${exposureColor}">${exposureText}</strong>
-              </div>
-              <div class="flex justify-between text-slate-300">
-                <span>Passability:</span>
-                <strong class="${isImpassable ? 'text-red-400' : isCaution ? 'text-amber-400' : 'text-emerald-400'}">${rState.status.toUpperCase()}</strong>
-              </div>
-            </div>
-            <div class="mt-2 text-[8px] text-amber-300 uppercase border-t border-slate-800 pt-1">
-              ● Simulated Road Flood Exposure (${activeTimeStep})
-            </div>
-          </div>`
-        );
-
-        overlayGroup.addLayer(roadLine);
-      });
-    }
-
-    // E. DRAINAGE NETWORK (Conduits & Nodes with stress colors & click telemetry)
-    if (activeLayers.drainageNetwork) {
-      // Conduits / Edges
-      DRAINAGE_EDGES.forEach((edge) => {
-        const fromNode = DRAINAGE_NODES.find((n) => n.id === edge.fromNode);
-        const toNode = DRAINAGE_NODES.find((n) => n.id === edge.toNode);
-        if (!fromNode || !toNode) return;
-
-        const eState = edge.timesteps[activeTimeStep];
-        const color = getEdgeColor(eState.status);
-        const isOverloaded = eState.flowM3s > edge.designCapacityM3s;
-        const isStressActive = activeLayers.drainageStress && isOverloaded;
-        const isSelected = selectedEdge?.id === edge.id;
-
-        const edgeLine = L.polyline(
-          [
-            [fromNode.lat, fromNode.lng],
-            [toNode.lat, toNode.lng],
-          ],
-          {
-            color: isSelected ? '#ffffff' : color,
-            weight: isSelected ? 5 : isStressActive ? 4.5 : isOverloaded ? 3.5 : 2.5,
-            opacity: 0.95,
-            dashArray: isOverloaded ? '6, 4' : undefined,
-          }
-        );
-
-        edgeLine.on('click', () => {
-          setSelectedEdge(edge);
-        });
-
-        edgeLine.bindTooltip(
-          `<div class="font-mono text-xs text-slate-100 p-1">
-            <div class="font-bold text-cyan-300">Conduit ${edge.id}: ${edge.name}</div>
-            <div class="text-[10px]">Flow: <strong>${eState.flowM3s.toFixed(1)} m³/s</strong> | Cap: <strong>${edge.designCapacityM3s.toFixed(1)} m³/s</strong></div>
-            <div class="text-[10px] font-bold ${isOverloaded ? 'text-red-400' : 'text-cyan-400'}">Utilization: ${eState.utilizationPct}% (${eState.status.toUpperCase()})</div>
-          </div>`,
-          { sticky: true, className: 'leaflet-dark-tooltip' }
-        );
-
-        edgeLine.bindPopup(
-          `<div class="font-mono text-xs text-slate-100 p-1 min-w-[220px]">
-            <div class="flex items-center justify-between border-b border-slate-700 pb-1 mb-1.5">
-              <span class="font-bold text-cyan-300">Conduit ${edge.id}</span>
-              <span class="text-[9px] px-1.5 py-0.5 rounded font-bold uppercase ${isOverloaded ? 'bg-red-950 text-red-300 border border-red-500' : 'bg-cyan-950 text-cyan-300 border border-cyan-500'}">
-                ${eState.status}
-              </span>
-            </div>
-            <div class="space-y-1 text-[11px]">
-              <div class="text-slate-300 text-[10px]">${edge.name}</div>
-              <div class="flex justify-between text-slate-300">
-                <span>Simulated Flow:</span>
-                <strong class="text-cyan-300">${eState.flowM3s.toFixed(1)} m³/s</strong>
-              </div>
-              <div class="flex justify-between text-slate-300">
-                <span>Design Capacity:</span>
-                <strong class="text-slate-200">${edge.designCapacityM3s.toFixed(1)} m³/s</strong>
-              </div>
-              <div class="flex justify-between text-slate-300">
-                <span>Stress / Utilization:</span>
-                <strong class="${isOverloaded ? 'text-red-400 font-bold' : 'text-emerald-400'}">${eState.utilizationPct}%</strong>
-              </div>
-              <div class="flex justify-between text-slate-300">
-                <span>Surcharge Condition:</span>
-                <strong class="${isOverloaded ? 'text-red-400' : 'text-slate-400'}">${isOverloaded ? 'SURCHARGED' : 'GRAVITY FLOW'}</strong>
-              </div>
-            </div>
-            <div class="mt-2 text-[8px] text-amber-300 uppercase border-t border-slate-800 pt-1">
-              ● Simulated Drainage Telemetry
-            </div>
-          </div>`
-        );
-
-        overlayGroup.addLayer(edgeLine);
-      });
-
-      // Nodes (Inlets, Manholes, Surcharged Junctions, Outfalls)
-      DRAINAGE_NODES.forEach((node) => {
-        const nState = node.timesteps[activeTimeStep];
-        const color = getNodeColor(nState.status);
-        const isSurcharged = nState.status === 'surcharged' || nState.status === 'critical';
-        const isSelected = selectedNode?.id === node.id;
-        const isOutfall = node.type === 'outfall';
-
-        if (isOutfall) {
-          const outfallIcon = L.divIcon({
-            className: 'custom-outfall-marker',
-            html: `<div style="color: #38bdf8; font-size: 15px; font-weight: bold; transform: translate(-5px, -9px); text-shadow: 0 0 6px #000;">◆</div>`,
-            iconSize: [14, 14],
-          });
-          const marker = L.marker([node.lat, node.lng], { icon: outfallIcon });
-          marker.on('click', () => setSelectedNode(node));
-          marker.bindTooltip(
-            `<div class="font-mono text-xs"><strong>${node.id}: ${node.name}</strong><br/><span class="text-cyan-400 uppercase">Simulated Outfall</span></div>`,
-            { sticky: true, className: 'leaflet-dark-tooltip' }
-          );
-          overlayGroup.addLayer(marker);
-        } else {
-          const marker = L.circleMarker([node.lat, node.lng], {
-            radius: node.type === 'junction' ? 6 : isSelected ? 7 : 4.5,
-            color: isSelected ? '#ffffff' : '#0b101c',
-            weight: isSelected ? 2.5 : 1.5,
-            fillColor: color,
-            fillOpacity: 0.95,
-          });
-
-          marker.on('click', () => {
-            setSelectedNode(node);
-          });
-
-          marker.bindTooltip(
-            `<div class="font-mono text-xs text-slate-100 p-1">
-              <div class="font-bold text-emerald-400">${node.id}: ${node.name}</div>
-              <div class="text-[10px] capitalize text-slate-300">Type: ${node.type} | Elev: ${node.elevationM}m MSL</div>
-              <div class="text-[10px]">Inflow: <strong>${nState.incomingFlowM3s.toFixed(1)} m³/s</strong> | Cap: <strong>${nState.capacityM3s.toFixed(1)} m³/s</strong></div>
-              <div class="text-[10px] font-bold ${isSurcharged ? 'text-red-400' : 'text-emerald-400'}">Status: ${nState.status.toUpperCase()} (${nState.utilizationPct}%)</div>
-            </div>`,
-            { sticky: true, className: 'leaflet-dark-tooltip' }
-          );
-
-          marker.bindPopup(
-            `<div class="font-mono text-xs text-slate-100 p-1 min-w-[220px]">
-              <div class="flex items-center justify-between border-b border-slate-700 pb-1 mb-1.5">
-                <span class="font-bold text-emerald-400">${node.id}: ${node.name}</span>
-                <span class="text-[9px] px-1.5 py-0.5 rounded font-bold uppercase ${isSurcharged ? 'bg-red-950 text-red-300 border border-red-500' : 'bg-emerald-950 text-emerald-300 border border-emerald-500'}">
-                  ${nState.status}
-                </span>
-              </div>
-              <div class="space-y-1 text-[11px]">
-                <div class="text-slate-300 text-[10px]">Type: ${node.type} | Elev: ${node.elevationM}m MSL</div>
-                <div class="flex justify-between text-slate-300">
-                  <span>Incoming Inflow:</span>
-                  <strong class="text-cyan-300">${nState.incomingFlowM3s.toFixed(1)} m³/s</strong>
-                </div>
-                <div class="flex justify-between text-slate-300">
-                  <span>Node Capacity:</span>
-                  <strong class="text-slate-200">${nState.capacityM3s.toFixed(1)} m³/s</strong>
-                </div>
-                <div class="flex justify-between text-slate-300">
-                  <span>Stress / Utilization:</span>
-                  <strong class="${isSurcharged ? 'text-red-400 font-bold' : 'text-emerald-400'}">${nState.utilizationPct}%</strong>
-                </div>
-                ${nState.surchargeDepthM > 0 ? `
-                  <div class="flex justify-between text-red-300">
-                    <span>Surcharge Head Rise:</span>
-                    <strong>+${nState.surchargeDepthM.toFixed(2)} m</strong>
-                  </div>
-                ` : ''}
-              </div>
-              <div class="mt-2 text-[8px] text-amber-300 uppercase border-t border-slate-800 pt-1">
-                ● Simulated Drainage Node Telemetry
-              </div>
-            </div>`
-          );
-
-          overlayGroup.addLayer(marker);
-        }
-      });
-    }
-
-    // F. LOWER-EXPOSURE ROUTING OVERLAY (IF ROUTE VIEW IS ACTIVE)
-    if (showRoutes && activeRoute) {
-      // Normal direct route (High flood exposure)
-      const normalLatLngs: [number, number][] = activeRoute.normalRoute.path.map((c) => [c[0], c[1]]);
-      const normalLine = L.polyline(normalLatLngs, {
+      const affectedLine = L.polyline(affectedPath, {
         color: '#ef4444',
-        weight: 4.5,
-        dashArray: '8, 6',
-        opacity: 0.9,
+        weight: 5,
+        opacity: 0.95,
       });
-      normalLine.bindTooltip(
-        `<div class="font-mono text-xs text-red-300 font-bold">NORMAL DIRECT ROUTE (HIGH FLOOD EXPOSURE)<br/>Max Depth: ${activeRoute.normalRoute.maxDepthM}m</div>`,
-        { sticky: true, className: 'leaflet-dark-tooltip' }
-      );
-      overlayGroup.addLayer(normalLine);
+      overlayGroup.addLayer(affectedLine);
 
-      // Flood-safe alternative route (Lower simulated flood exposure)
-      const safeLatLngs: [number, number][] = activeRoute.safeRoute.path.map((c) => [c[0], c[1]]);
-      const safeLine = L.polyline(safeLatLngs, {
+      // Red No-Entry Barrier Icons (⛔) on affected road
+      const barrierIcon = L.divIcon({
+        className: 'barrier-marker',
+        html: `
+          <div style="
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #dc2626;
+            border: 2px solid white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.8);
+          ">
+            <span style="width: 10px; height: 2.5px; background: white; border-radius: 1px;"></span>
+          </div>
+        `,
+        iconSize: [18, 18],
+        iconAnchor: [9, 9],
+      });
+
+      overlayGroup.addLayer(L.marker([26.1260, 91.8150], { icon: barrierIcon }));
+      overlayGroup.addLayer(L.marker([26.1390, 91.7990], { icon: barrierIcon }));
+
+      // Bus transit icon on Khanapara road
+      const busIcon = L.divIcon({
+        className: 'bus-transit-marker',
+        html: `
+          <div style="
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            background: #0284c7;
+            border: 2px solid white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.8);
+          ">
+            <span style="color: white; font-size: 11px;">🚏</span>
+          </div>
+        `,
+        iconSize: [22, 22],
+        iconAnchor: [11, 11],
+      });
+      overlayGroup.addLayer(L.marker([26.1340, 91.8080], { icon: busIcon }));
+
+      // 2. Green Safe Alternative Route (Elevated ridge bypass corridor)
+      const safePath: [number, number][] = [
+        [26.1180, 91.8220],
+        [26.1320, 91.8110],
+        [26.1410, 91.8190],
+        [26.1550, 91.8150],
+        [26.1750, 91.8020],
+        [26.1880, 91.7745],
+      ];
+
+      const safeLine = L.polyline(safePath, {
         color: '#10b981',
         weight: 5,
         opacity: 0.95,
       });
-      safeLine.bindTooltip(
-        `<div class="font-mono text-xs text-emerald-300 font-bold">LOWER SIMULATED FLOOD EXPOSURE ROUTE<br/>Max Depth: ${activeRoute.safeRoute.maxDepthM}m</div>`,
-        { sticky: true, className: 'leaflet-dark-tooltip' }
-      );
       overlayGroup.addLayer(safeLine);
 
-      // Origin / Destination Markers
-      const startMarker = L.circleMarker([activeRoute.originCoords[0], activeRoute.originCoords[1]], {
-        radius: 7,
-        color: '#ffffff',
-        fillColor: '#06b6d4',
-        fillOpacity: 1,
-        weight: 2,
+      // Base network lines for surrounding streets
+      ROAD_SEGMENTS.forEach((road) => {
+        const latLngs: [number, number][] = road.path.map((c) => [c[0], c[1]]);
+        const baseRoad = L.polyline(latLngs, {
+          color: '#64748b',
+          weight: 2,
+          opacity: 0.5,
+        });
+        overlayGroup.addLayer(baseRoad);
       });
-      startMarker.bindTooltip(`<div class="font-mono text-xs font-bold text-cyan-300">START: ${activeRoute.origin}</div>`, {
-        permanent: true,
-        direction: 'top',
-        className: 'leaflet-dark-tooltip',
-      });
-      overlayGroup.addLayer(startMarker);
-
-      const destMarker = L.circleMarker([activeRoute.destCoords[0], activeRoute.destCoords[1]], {
-        radius: 7,
-        color: '#ffffff',
-        fillColor: '#10b981',
-        fillOpacity: 1,
-        weight: 2,
-      });
-      destMarker.bindTooltip(`<div class="font-mono text-xs font-bold text-emerald-300">DEST: ${activeRoute.destination}</div>`, {
-        permanent: true,
-        direction: 'top',
-        className: 'leaflet-dark-tooltip',
-      });
-      overlayGroup.addLayer(destMarker);
     }
-  }, [
-    activeTimeStep,
-    activeLayers,
-    showRoutes,
-    selectedRouteId,
-    selectedNode,
-    selectedEdge,
-    selectedRoad,
-  ]);
 
-  // Map controls
+    // ==========================================
+    // E. DRAINAGE NETWORK (CONDUITS & NODES)
+    // ==========================================
+    if (activeLayers.drainageNetwork !== false) {
+      // Conduits
+      DRAINAGE_EDGES.slice(0, 32).forEach((edge) => {
+        const from = DRAINAGE_NODES.find((n) => n.id === edge.fromNode);
+        const to = DRAINAGE_NODES.find((n) => n.id === edge.toNode);
+        if (!from || !to) return;
+
+        const conduitLine = L.polyline(
+          [
+            [from.lat, from.lng],
+            [to.lat, to.lng],
+          ],
+          {
+            color: '#38bdf8',
+            weight: 2,
+            opacity: 0.7,
+            dashArray: '4, 4',
+          }
+        );
+        overlayGroup.addLayer(conduitLine);
+      });
+
+      // Manholes (green rings) & Outfalls (purple rings)
+      DRAINAGE_NODES.slice(0, 24).forEach((node) => {
+        const isOutfall = node.type === 'outfall';
+        const circle = L.circleMarker([node.lat, node.lng], {
+          radius: isOutfall ? 5.5 : 4,
+          color: isOutfall ? '#c084fc' : '#34d399',
+          weight: 2,
+          fillColor: '#090e18',
+          fillOpacity: 0.9,
+        });
+        overlayGroup.addLayer(circle);
+      });
+    }
+
+    // ==========================================
+    // F. ON-MAP GEOGRAPHIC LABELS (AS IN REFERENCE)
+    // ==========================================
+    const labelLocations = [
+      { text: 'Khanapara', coords: [26.1280, 91.8150], anchor: [30, 20] },
+      { text: 'Zoo Road', coords: [26.1680, 91.7820], anchor: [30, 20] },
+      { text: 'GS Road →', coords: [26.1480, 91.7760], anchor: [30, 20] },
+      { text: 'Rukminigaon →', coords: [26.1360, 91.7910], anchor: [40, 20] },
+      { text: 'Jalukbari →', coords: [26.1310, 91.7450], anchor: [30, 20] },
+      { text: 'Dispur', coords: [26.1420, 91.8020], anchor: [20, 20] },
+      { text: 'Guwahati →', coords: [26.1150, 91.7650], anchor: [30, 20] },
+    ];
+
+    labelLocations.forEach((lbl) => {
+      const lblIcon = L.divIcon({
+        className: 'city-text-label',
+        html: `
+          <div style="
+            color: #ffffff;
+            font-family: 'Inter', sans-serif;
+            font-size: 11px;
+            font-weight: 600;
+            text-shadow: 0 0 6px #000, 0 1px 3px #000;
+            white-space: nowrap;
+            pointer-events: none;
+          ">
+            ${lbl.text}
+          </div>
+        `,
+        iconSize: [80, 20],
+      });
+      overlayGroup.addLayer(L.marker(lbl.coords as [number, number], { icon: lblIcon }));
+    });
+  }, [activeTimeStep, activeLayers, baseMapMode]);
+
+  // Controls
   const handleZoomIn = () => mapInstanceRef.current?.zoomIn();
   const handleZoomOut = () => mapInstanceRef.current?.zoomOut();
-  const handleReset = () => {
-    mapInstanceRef.current?.flyTo([26.1540, 91.7650], 13, { duration: 0.8 });
-  };
-  const handleFlyTo = (lat: number, lng: number, zoom: number = 15) => {
-    mapInstanceRef.current?.flyTo([lat, lng], zoom, { duration: 1 });
+  const handleLocate = () => {
+    mapInstanceRef.current?.flyTo([26.1450, 91.7850], 13.2, { duration: 0.8 });
   };
 
   return (
-    <div className="relative w-full h-full min-h-[520px] flex flex-col bg-[#080d16] border border-[#1e293b] rounded-lg overflow-hidden select-none">
-      {/* Top Floating GIS Status Bar */}
-      <div className="absolute top-2.5 left-2.5 z-[1000] flex flex-wrap items-center gap-2 pointer-events-auto max-w-[85%]">
-        {/* Scenario Pill */}
-        <div className="bg-[#0b101c]/90 backdrop-blur-md px-2.5 py-1 rounded border border-[#223554] text-xs font-mono flex items-center gap-2 text-slate-200 shadow-xl">
-          <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span>
-          <span className="font-bold uppercase tracking-wider text-white">Guwahati Pilot GIS</span>
-          <span className="text-slate-600">|</span>
-          <span className="text-cyan-300 font-bold">{activeTimeStep}</span>
-          <span className="text-slate-500 text-[10px] hidden md:inline">● SIMULATED FLOOD SCENARIO</span>
-        </div>
-
-        {/* Hotspots Quick Jumper */}
-        <div className="hidden lg:flex items-center gap-1 bg-[#0b101c]/90 backdrop-blur-md p-1 rounded border border-[#223554] text-[10px] font-mono shadow-xl overflow-x-auto">
-          <span className="text-slate-400 px-1 font-bold flex items-center gap-1">
-            <Compass className="w-3 h-3 text-cyan-400" />
-            HOTSPOTS:
-          </span>
-          {hotspots.map((spot) => (
-            <button
-              key={spot.name}
-              onClick={() => handleFlyTo(spot.lat, spot.lng, spot.zoom)}
-              className="px-1.5 py-0.5 rounded bg-[#152033] hover:bg-cyan-950 text-slate-300 hover:text-cyan-300 transition-colors border border-slate-700/60 whitespace-nowrap"
-            >
-              {spot.name.split(' ')[0]}
-            </button>
-          ))}
+    <div className="relative w-full h-full min-h-[580px] lg:min-h-[640px] flex flex-col bg-[#080d16] border border-[#162236] rounded-xl overflow-hidden select-none shadow-2xl">
+      {/* 1. FLOATING COMPASS (TOP-LEFT) */}
+      <div className="absolute top-4 left-4 z-[1000] pointer-events-none">
+        <div className="w-8 h-8 rounded-full bg-[#0b1320]/80 backdrop-blur-md border border-[#1e2f49] flex items-center justify-center shadow-lg text-slate-300">
+          <Compass className="w-5 h-5 text-cyan-400" />
         </div>
       </div>
 
-      {/* Floating Map Navigation Controls */}
-      <div className="absolute top-2.5 right-2.5 z-[1000] flex flex-col gap-1 bg-[#0b101c]/90 backdrop-blur-md p-1 rounded border border-[#223554] shadow-xl">
+      {/* 2. FLOATING CARD: FLOOD COMPLETION TIMER (TOP-RIGHT) */}
+      <div className="absolute top-4 right-4 z-[1000] pointer-events-auto">
+        <div className="bg-[#0b1322]/90 backdrop-blur-md border border-[#1e2f49] rounded-xl p-3 shadow-2xl flex flex-col gap-1 min-w-[210px]">
+          {/* Header */}
+          <div className="flex items-center justify-between text-[11px] text-slate-300 border-b border-slate-700/60 pb-1.5 font-medium">
+            <span>Flood Completion Timer</span>
+            <Info className="w-3.5 h-3.5 text-slate-400 cursor-pointer hover:text-cyan-400" />
+          </div>
+
+          {/* Donut Gauge & 48 min readout */}
+          <div className="flex items-center gap-3 pt-1">
+            {/* Circular Progress Gauge */}
+            <div className="relative w-14 h-14 flex items-center justify-center flex-shrink-0">
+              <svg className="w-14 h-14 -rotate-90" viewBox="0 0 44 44">
+                {/* Background Ring */}
+                <circle
+                  cx="22"
+                  cy="22"
+                  r="18"
+                  fill="none"
+                  stroke="#1e293b"
+                  strokeWidth="4"
+                />
+                {/* Colored Progress Arc */}
+                <circle
+                  cx="22"
+                  cy="22"
+                  r="18"
+                  fill="none"
+                  stroke="url(#timerGradient)"
+                  strokeWidth="4"
+                  strokeDasharray="113"
+                  strokeDashoffset="34"
+                  strokeLinecap="round"
+                />
+                <defs>
+                  <linearGradient id="timerGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stopColor="#06b6d4" />
+                    <stop offset="60%" stopColor="#eab308" />
+                    <stop offset="100%" stopColor="#ef4444" />
+                  </linearGradient>
+                </defs>
+              </svg>
+              {/* Center icon */}
+              <Clock className="w-4 h-4 text-cyan-400 absolute" />
+            </div>
+
+            {/* Readout */}
+            <div className="flex flex-col">
+              <div className="text-xl font-bold text-white tracking-tight leading-none">
+                48 <span className="text-xs font-normal text-slate-300">min</span>
+              </div>
+              <span className="text-[10px] text-slate-400 mt-0.5">to reach flood level</span>
+              <span className="text-[9px] text-cyan-400/90 font-mono mt-0.5">
+                (current water depth: 35 cm)
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* 3. FLOATING PINNED CALLOUT: KHANAPARA CROSSING (ON MAP) */}
+      {!isKhanaparaCardDismissed && (
+        <div className="absolute top-28 left-20 lg:left-36 z-[1000] pointer-events-auto max-w-[270px] animate-fadeIn">
+          <div className="bg-[#0b1322]/95 backdrop-blur-md border border-rose-500/50 rounded-xl p-3 shadow-2xl text-xs space-y-2 relative">
+            {/* Header with Hazard Icon */}
+            <div className="flex items-start gap-2">
+              <div className="w-5 h-5 rounded bg-rose-500/20 border border-rose-500/50 flex items-center justify-center text-rose-400 flex-shrink-0 mt-0.5">
+                <AlertTriangle className="w-3.5 h-3.5 fill-rose-500/30" />
+              </div>
+
+              <div>
+                <div className="font-bold text-white text-[13px] leading-tight">
+                  Khanapara Crossing
+                </div>
+                <div className="text-[10px] font-semibold text-rose-400 uppercase tracking-wider">
+                  High Risk Zone
+                </div>
+              </div>
+
+              <button
+                onClick={() => setIsKhanaparaCardDismissed(true)}
+                className="ml-auto text-slate-500 hover:text-white text-xs"
+                title="Dismiss callout"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Metrics */}
+            <div className="space-y-1 text-[11px] text-slate-300 pt-1 border-t border-slate-800">
+              <div className="flex justify-between items-center">
+                <span className="text-slate-400">Predicted Water Depth:</span>
+                <strong className="text-white font-mono">60 – 100 cm</strong>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-slate-400">Time to Flood:</span>
+                <strong className="text-rose-400 font-mono flex items-center gap-1">
+                  <Clock className="w-3 h-3" />
+                  48 min
+                </strong>
+              </div>
+            </div>
+
+            {/* Warning Pill Alert */}
+            <div className="p-1.5 rounded-lg bg-rose-950/60 border border-rose-500/40 text-[10px] text-rose-200 flex items-center gap-1.5 font-medium">
+              <AlertTriangle className="w-3.5 h-3.5 text-rose-400 flex-shrink-0" />
+              <span>Will become a risk zone in 48 min</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 4. FLOATING MAP NAVIGATION CONTROLS (BOTTOM-RIGHT) */}
+      <div className="absolute bottom-16 right-4 z-[1000] flex flex-col gap-1.5 pointer-events-auto">
         <button
           onClick={handleZoomIn}
-          className="p-1.5 rounded hover:bg-slate-800 text-slate-300 hover:text-cyan-300 transition-colors"
+          className="w-8 h-8 rounded-lg bg-[#0b1322]/90 backdrop-blur-md border border-[#1e2f49] hover:bg-cyan-950 text-slate-200 hover:text-cyan-300 flex items-center justify-center shadow-lg transition-colors"
           title="Zoom In"
         >
-          <ZoomIn className="w-4 h-4" />
+          <Plus className="w-4 h-4" />
         </button>
         <button
           onClick={handleZoomOut}
-          className="p-1.5 rounded hover:bg-slate-800 text-slate-300 hover:text-cyan-300 transition-colors"
+          className="w-8 h-8 rounded-lg bg-[#0b1322]/90 backdrop-blur-md border border-[#1e2f49] hover:bg-cyan-950 text-slate-200 hover:text-cyan-300 flex items-center justify-center shadow-lg transition-colors"
           title="Zoom Out"
         >
-          <ZoomOut className="w-4 h-4" />
+          <Minus className="w-4 h-4" />
         </button>
         <button
-          onClick={handleReset}
-          className="p-1.5 rounded hover:bg-slate-800 text-slate-300 hover:text-cyan-300 transition-colors"
-          title="Reset to Guwahati Extent"
+          onClick={handleLocate}
+          className="w-8 h-8 rounded-lg bg-[#0b1322]/90 backdrop-blur-md border border-[#1e2f49] hover:bg-cyan-950 text-slate-200 hover:text-cyan-300 flex items-center justify-center shadow-lg transition-colors"
+          title="Center on Guwahati"
         >
-          <RotateCcw className="w-4 h-4" />
+          <Crosshair className="w-4 h-4" />
         </button>
       </div>
 
-      {/* Bottom Floating Geographic Notice Badges */}
-      <div className="absolute bottom-2.5 left-2.5 z-[1000] flex flex-wrap items-center gap-2 pointer-events-none text-[10px] font-mono">
-        <div className="bg-[#0b101c]/90 backdrop-blur-md px-2 py-1 rounded border border-amber-500/40 text-amber-300 flex items-center gap-1.5 shadow-lg">
-          <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
-          <span>SIMULATED FLOOD SCENARIO — PILOT DATA</span>
-        </div>
-        <div className="bg-[#0b101c]/90 backdrop-blur-md px-2 py-1 rounded border border-cyan-800 text-cyan-300 shadow-lg hidden md:flex items-center gap-1">
-          <span>REAL BASEMAP: GUWAHATI, ASSAM</span>
+      {/* 5. FLOATING SCALE BAR (BOTTOM-LEFT) */}
+      <div className="absolute bottom-16 left-4 z-[1000] pointer-events-none">
+        <div className="bg-[#0b1322]/80 backdrop-blur-md px-2 py-1 rounded border border-[#1e2f49] text-[9px] font-mono text-slate-300 shadow-md flex flex-col gap-0.5">
+          <div className="flex justify-between w-28 text-[8px] text-slate-400">
+            <span>0</span>
+            <span>0.5</span>
+            <span>1</span>
+            <span>2 km</span>
+          </div>
+          <div className="w-28 h-1 bg-white/20 rounded-full flex">
+            <div className="w-1/4 h-full bg-cyan-400 rounded-l-full"></div>
+            <div className="w-1/4 h-full bg-white/60"></div>
+            <div className="w-2/4 h-full bg-cyan-400 rounded-r-full"></div>
+          </div>
         </div>
       </div>
 
-      {/* Actual Geographic Leaflet Basemap Container */}
+      {/* 6. MAP-BOTTOM TIMELINE & NOWCAST BAR (IN-MAP FULL WIDTH) */}
+      <div className="absolute bottom-2 left-3 right-3 z-[1000] pointer-events-auto">
+        <div className="bg-[#0b1322]/92 backdrop-blur-md border border-[#1e2f49] rounded-xl px-3 py-2 flex flex-wrap items-center justify-between gap-3 shadow-2xl">
+          {/* Play/Pause Button */}
+          <div className="flex items-center gap-2">
+            {!isPlaying ? (
+              <button
+                onClick={runNowcast}
+                className="w-8 h-8 rounded-full bg-cyan-500 hover:bg-cyan-400 text-white flex items-center justify-center shadow-md active:scale-95 transition-all"
+                title="Play Nowcast Timeline"
+              >
+                <Play className="w-3.5 h-3.5 fill-current ml-0.5" />
+              </button>
+            ) : (
+              <button
+                onClick={pauseNowcast}
+                className="w-8 h-8 rounded-full bg-amber-500 hover:bg-amber-400 text-white flex items-center justify-center shadow-md active:scale-95 transition-all"
+                title="Pause Timeline"
+              >
+                <Pause className="w-3.5 h-3.5 fill-current" />
+              </button>
+            )}
+            <span className="text-xs font-semibold text-white ml-1">
+              {activeTimeStep === 'NOW' ? 'Now' : activeTimeStep}
+            </span>
+          </div>
+
+          {/* Interactive Slider Track */}
+          <div className="flex-1 max-w-xl mx-2 flex flex-col gap-1">
+            <div className="relative flex items-center">
+              <input
+                type="range"
+                min="0"
+                max="3"
+                step="1"
+                value={
+                  activeTimeStep === 'NOW'
+                    ? 0
+                    : activeTimeStep === '+1HR'
+                    ? 1
+                    : activeTimeStep === '+2HR'
+                    ? 2
+                    : 3
+                }
+                onChange={(e) => {
+                  pauseNowcast();
+                  const steps: TimeStep[] = ['NOW', '+1HR', '+2HR', '+3HR'];
+                  setTimeStep(steps[Number(e.target.value)]);
+                }}
+                className="w-full h-1.5 bg-[#162338] rounded-lg appearance-none cursor-pointer accent-cyan-400"
+              />
+            </div>
+
+            {/* Slider Step Labels */}
+            <div className="flex justify-between text-[10px] font-mono text-slate-400 px-0.5">
+              <span
+                onClick={() => { pauseNowcast(); setTimeStep('NOW'); }}
+                className={`cursor-pointer hover:text-cyan-300 ${activeTimeStep === 'NOW' ? 'text-cyan-400 font-bold' : ''}`}
+              >
+                Now
+              </span>
+              <span
+                onClick={() => { pauseNowcast(); setTimeStep('+1HR'); }}
+                className={`cursor-pointer hover:text-cyan-300 ${activeTimeStep === '+1HR' ? 'text-cyan-400 font-bold' : ''}`}
+              >
+                +1 hr
+              </span>
+              <span
+                onClick={() => { pauseNowcast(); setTimeStep('+2HR'); }}
+                className={`cursor-pointer hover:text-cyan-300 ${activeTimeStep === '+2HR' ? 'text-cyan-400 font-bold' : ''}`}
+              >
+                +2 hr
+              </span>
+              <span
+                onClick={() => { pauseNowcast(); setTimeStep('+3HR'); }}
+                className={`cursor-pointer hover:text-cyan-300 ${activeTimeStep === '+3HR' ? 'text-cyan-400 font-bold' : ''}`}
+              >
+                +3 hr
+              </span>
+            </div>
+          </div>
+
+          {/* Timestamp Metadata */}
+          <div className="hidden sm:flex flex-col text-right text-[10px] font-mono text-slate-400 leading-tight">
+            <span>Forecast: 16 Sep 2026, 02:40 AM</span>
+            <span className="text-slate-500">Model Run: 16 Sep 2026, 12:15 AM</span>
+          </div>
+        </div>
+      </div>
+
+      {/* 7. ACTUAL LEAFLET MAP CONTAINER */}
       <div
         ref={mapContainerRef}
-        className="w-full h-full flex-1 z-10 min-h-[520px]"
+        className="w-full h-full flex-1 z-10 min-h-[580px]"
         style={{ background: '#090e18' }}
       />
     </div>

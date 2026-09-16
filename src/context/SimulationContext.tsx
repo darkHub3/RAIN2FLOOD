@@ -5,15 +5,22 @@ import { DRAINAGE_EDGES } from '../data/drainageEdges';
 import { ROAD_SEGMENTS } from '../data/roads';
 
 export type NavigationTab = 'dashboard' | 'drainage' | 'forecast' | 'route' | 'howitworks';
+export type { TimeStep } from '../types';
 
 export interface ActiveLayers {
-  floodRisk: boolean;
-  floodDepth: boolean;
+  rainfallNowcast: boolean;
+  predictedFloodZones: boolean;
+  waterDepth: boolean;
   drainageNetwork: boolean;
-  drainageStress: boolean;
-  roadExposure: boolean;
-  waterBodies: boolean;
-  roads: boolean;
+  historicalHotspots: boolean;
+  roadNetwork: boolean;
+  // Aliases for compatibility
+  floodRisk?: boolean;
+  floodDepth?: boolean;
+  drainageStress?: boolean;
+  roadExposure?: boolean;
+  waterBodies?: boolean;
+  roads?: boolean;
 }
 
 interface SimulationContextType {
@@ -26,8 +33,8 @@ interface SimulationContextType {
   stepForward: () => void;
   activeLayers: ActiveLayers;
   toggleLayer: (layer: keyof ActiveLayers) => void;
-  baseMapMode: 'dark' | 'osm' | 'satellite';
-  setBaseMapMode: (mode: 'dark' | 'osm' | 'satellite') => void;
+  baseMapMode: 'satellite' | 'osm' | 'dark';
+  setBaseMapMode: (mode: 'satellite' | 'osm' | 'dark') => void;
   selectedNode: DrainageNode | null;
   setSelectedNode: (node: DrainageNode | null) => void;
   selectedEdge: DrainageEdge | null;
@@ -43,6 +50,10 @@ interface SimulationContextType {
   setSelectedRouteId: (id: string) => void;
   isDisclaimerOpen: boolean;
   setIsDisclaimerOpen: (open: boolean) => void;
+  searchQuery: string;
+  setSearchQuery: (query: string) => void;
+  targetLocation: { lat: number; lng: number; name: string; zoom?: number } | null;
+  setTargetLocation: (loc: { lat: number; lng: number; name: string; zoom?: number } | null) => void;
 }
 
 const TIME_STEPS_ORDER: TimeStep[] = ['NOW', '+1HR', '+2HR', '+3HR'];
@@ -55,12 +66,19 @@ export const SimulationProvider: React.FC<{ children: ReactNode }> = ({ children
   const [activeTab, setActiveTab] = useState<NavigationTab>('dashboard');
   const [selectedRouteId, setSelectedRouteId] = useState<string>('route-01');
   const [isDisclaimerOpen, setIsDisclaimerOpen] = useState<boolean>(false);
-  const [baseMapMode, setBaseMapMode] = useState<'dark' | 'osm' | 'satellite'>('dark');
+  const [baseMapMode, setBaseMapMode] = useState<'satellite' | 'osm' | 'dark'>('satellite');
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [targetLocation, setTargetLocation] = useState<{ lat: number; lng: number; name: string; zoom?: number } | null>(null);
 
   const [activeLayers, setActiveLayers] = useState<ActiveLayers>({
+    rainfallNowcast: true,
+    predictedFloodZones: true,
+    waterDepth: true,
+    drainageNetwork: true,
+    historicalHotspots: true,
+    roadNetwork: true,
     floodRisk: true,
     floodDepth: true,
-    drainageNetwork: true,
     drainageStress: true,
     roadExposure: true,
     waterBodies: true,
@@ -196,6 +214,10 @@ export const SimulationProvider: React.FC<{ children: ReactNode }> = ({ children
         setSelectedRouteId,
         isDisclaimerOpen,
         setIsDisclaimerOpen,
+        searchQuery,
+        setSearchQuery,
+        targetLocation,
+        setTargetLocation,
       }}
     >
       {children}

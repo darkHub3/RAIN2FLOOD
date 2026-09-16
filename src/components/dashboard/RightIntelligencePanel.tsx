@@ -1,10 +1,6 @@
 import React from 'react';
-import { useSimulation } from '../../context/SimulationContext';
-import { FORECAST_CHART_SERIES } from '../../data/forecastScenario';
+import { useSimulation, TimeStep } from '../../context/SimulationContext';
 import { DRAINAGE_EDGES } from '../../data/drainageEdges';
-import { DRAINAGE_NODES } from '../../data/drainageNodes';
-import { ROUTE_SCENARIOS } from '../../data/routes';
-import { TimeStep } from '../../types';
 import {
   Clock,
   AlertTriangle,
@@ -17,8 +13,31 @@ import {
   Droplets,
   GitBranch,
   MapPin,
-  X
+  X,
+  Siren,
+  ChevronRight,
+  Route,
+  Zap,
+  Radio
 } from 'lucide-react';
+
+interface AffectedRoadItem {
+  id: string;
+  name: string;
+  risk: 'High' | 'Moderate' | 'Low';
+  timeToFlood: string;
+  depth: string;
+  lat: number;
+  lng: number;
+}
+
+const TOP_AFFECTED_ROADS: AffectedRoadItem[] = [
+  { id: 'R-01', name: 'Khanapara Crossing', risk: 'High', timeToFlood: '48 min', depth: '85 cm', lat: 26.1265, lng: 91.8080 },
+  { id: 'R-02', name: 'Zoo Road', risk: 'High', timeToFlood: '1 hr 10 min', depth: '70 cm', lat: 26.1668, lng: 91.7794 },
+  { id: 'R-03', name: 'GS Road', risk: 'Moderate', timeToFlood: '1 hr 45 min', depth: '45 cm', lat: 26.1550, lng: 91.7760 },
+  { id: 'R-04', name: 'Rukminigaon Road', risk: 'Moderate', timeToFlood: '2 hr 10 min', depth: '38 cm', lat: 26.1420, lng: 91.7920 },
+  { id: 'R-05', name: 'Jalukbari Road', risk: 'Low', timeToFlood: '2 hr 50 min', depth: '15 cm', lat: 26.1520, lng: 91.6680 },
+];
 
 export const RightIntelligencePanel: React.FC = () => {
   const {
@@ -31,67 +50,35 @@ export const RightIntelligencePanel: React.FC = () => {
     selectedRoad,
     setSelectedRoad,
     setActiveTab,
+    setTargetLocation,
   } = useSimulation();
 
-  // Active or default edge for Scenario Alert (defaults to D-027)
+  // Active or default edge for Surcharge alert
   const defaultEdge = DRAINAGE_EDGES.find((e) => e.id === 'D-027') || DRAINAGE_EDGES[0];
   const activeAlertEdge = selectedEdge || defaultEdge;
   const edgeState = activeAlertEdge.timesteps[activeTimeStep];
   const isEdgeOverloaded = edgeState.flowM3s > activeAlertEdge.designCapacityM3s;
 
-  // Active route preview
-  const routePreview = ROUTE_SCENARIOS[0]; // Paltan Bazar to Beltola
-
-  // Dynamic Road Risk data per timestep with requested Watch/Flood Risk/High Exposure indicators
-  const getRoadRiskList = (step: TimeStep) => {
-    switch (step) {
-      case 'NOW':
-        return [
-          { name: 'Khanapara', status: 'Watch', depth: '0.05m', badge: 'bg-yellow-950/70 text-yellow-300 border-yellow-700/80' },
-          { name: 'Zoo Road', status: 'Watch', depth: '0.14m', badge: 'bg-yellow-950/70 text-yellow-300 border-yellow-700/80' },
-          { name: 'GS Road', status: 'Watch', depth: '0.12m', badge: 'bg-yellow-950/70 text-yellow-300 border-yellow-700/80' },
-          { name: 'Rukminigaon Road', status: 'Watch', depth: '0.18m', badge: 'bg-yellow-950/70 text-yellow-300 border-yellow-700/80' },
-          { name: 'Jalukbari Road', status: 'Clear', depth: '0.04m', badge: 'bg-slate-900 text-slate-400 border-slate-700' },
-        ];
-      case '+1HR':
-        return [
-          { name: 'Khanapara', status: 'Watch', depth: '0.16m', badge: 'bg-yellow-950/70 text-yellow-300 border-yellow-700/80' },
-          { name: 'Zoo Road', status: 'Flood Risk', depth: '0.30m', badge: 'bg-orange-950/80 text-orange-300 border-orange-600' },
-          { name: 'GS Road', status: 'Flood Risk', depth: '0.28m', badge: 'bg-orange-950/80 text-orange-300 border-orange-600' },
-          { name: 'Rukminigaon Road', status: 'Flood Risk', depth: '0.38m', badge: 'bg-orange-950/80 text-orange-300 border-orange-600' },
-          { name: 'Jalukbari Road', status: 'Clear', depth: '0.10m', badge: 'bg-slate-900 text-slate-400 border-slate-700' },
-        ];
-      case '+2HR':
-        return [
-          { name: 'Khanapara', status: 'Flood Risk', depth: '0.28m', badge: 'bg-orange-950/80 text-orange-300 border-orange-600' },
-          { name: 'Zoo Road', status: 'High Exposure', depth: '0.56m', badge: 'bg-rose-950 text-rose-200 border-rose-500 font-bold' },
-          { name: 'GS Road', status: 'High Exposure', depth: '0.54m', badge: 'bg-rose-950 text-rose-200 border-rose-500 font-bold' },
-          { name: 'Rukminigaon Road', status: 'High Exposure', depth: '0.65m', badge: 'bg-rose-950 text-rose-200 border-rose-500 font-bold' },
-          { name: 'Jalukbari Road', status: 'Watch', depth: '0.22m', badge: 'bg-yellow-950/70 text-yellow-300 border-yellow-700/80' },
-        ];
-      case '+3HR':
-      default:
-        return [
-          { name: 'Khanapara', status: 'High Exposure', depth: '0.46m', badge: 'bg-rose-950 text-rose-200 border-rose-500 font-bold' },
-          { name: 'Zoo Road', status: 'High Exposure', depth: '0.85m', badge: 'bg-rose-950 text-rose-200 border-rose-500 font-bold' },
-          { name: 'GS Road', status: 'High Exposure', depth: '0.82m', badge: 'bg-rose-950 text-rose-200 border-rose-500 font-bold' },
-          { name: 'Rukminigaon Road', status: 'High Exposure', depth: '0.95m', badge: 'bg-rose-950 text-rose-200 border-rose-500 font-bold' },
-          { name: 'Jalukbari Road', status: 'Flood Risk', depth: '0.35m', badge: 'bg-orange-950/80 text-orange-300 border-orange-600' },
-        ];
-    }
-  };
-
-  const roadRiskList = getRoadRiskList(activeTimeStep);
+  const timelineSteps: { id: TimeStep | '+30MIN'; label: string; depth: string; targetStep: TimeStep }[] = [
+    { id: 'NOW', label: 'Now', depth: '35cm', targetStep: 'NOW' },
+    { id: '+30MIN', label: '+30min', depth: '55cm', targetStep: '+1HR' },
+    { id: '+1HR', label: '+1hr', depth: '80cm', targetStep: '+1HR' },
+    { id: '+2HR', label: '+2hr', depth: '95cm', targetStep: '+2HR' },
+    { id: '+3HR', label: '+3hr', depth: '100+cm', targetStep: '+3HR' },
+  ];
 
   return (
-    <div className="flex flex-col gap-3 bg-[#0d131f] border border-[#1e293b] rounded-lg p-3 text-xs font-mono text-slate-300 shadow-md select-none h-full overflow-y-auto">
-      {/* 0. ACTIVE TELEMETRY INSPECTION (When user clicks on a road, node, or conduit) */}
+    <aside
+      aria-label="Flood Intelligence Panel"
+      className="flex flex-col gap-2.5 bg-[#0b121e]/95 backdrop-blur-md border border-[#1e293b] rounded-xl p-3 text-xs text-slate-300 shadow-2xl select-none h-full overflow-y-auto custom-scrollbar"
+    >
+      {/* 0. ACTIVE TELEMETRY INSPECTION (If user clicked node, edge, or road) */}
       {(selectedRoad || selectedNode || selectedEdge) && (
-        <div className="p-2.5 rounded-lg bg-cyan-950/30 border border-cyan-500/50 space-y-1.5 shadow-lg animate-fadeIn">
+        <div className="p-2.5 rounded-lg bg-cyan-950/40 border border-cyan-500/50 space-y-1.5 shadow-lg animate-fadeIn">
           <div className="flex items-center justify-between border-b border-cyan-500/30 pb-1">
             <span className="text-[10px] font-bold text-cyan-300 uppercase tracking-wider flex items-center gap-1.5">
               <Activity className="w-3.5 h-3.5 text-cyan-400" />
-              Active GIS Inspection
+              Active GIS Telemetry
             </span>
             <button
               onClick={() => {
@@ -138,214 +125,276 @@ export const RightIntelligencePanel: React.FC = () => {
         </div>
       )}
 
-      {/* 1. FLOOD RISK TIMELINE */}
-      <div className="space-y-2">
+      {/* 1. FLOOD RISK TIMELINE (KHANAPARA CROSSING) */}
+      <section className="space-y-2">
         <div className="flex items-center justify-between border-b border-[#1e293b] pb-1.5">
-          <span className="text-[11px] font-bold text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5">
             <Clock className="w-3.5 h-3.5 text-cyan-400" />
-            Flood Risk Timeline
+            <h2 className="text-[11px] font-bold text-white tracking-tight uppercase">
+              Flood Risk Timeline
+            </h2>
+          </div>
+          <span className="text-[10px] font-mono text-cyan-300 font-semibold flex items-center gap-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
+            Khanapara Crossing
           </span>
-          <span className="text-[10px] text-cyan-400 font-bold">0–3h Horizon</span>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
-          {FORECAST_CHART_SERIES.map((step) => {
-            const isSelected = activeTimeStep === step.timeStep;
-            const riskLabel =
-              step.timeStep === 'NOW'
-                ? 'MODERATE'
-                : step.timeStep === '+1HR'
-                ? 'HIGH'
-                : step.timeStep === '+2HR'
-                ? 'HIGH'
-                : 'CRITICAL';
+        {/* 5-Node Timeline Strip */}
+        <div className="relative pt-2 pb-1 px-1">
+          {/* Track line behind nodes */}
+          <div className="absolute top-[18px] left-4 right-4 h-0.5 bg-slate-800" />
+          <div
+            className="absolute top-[18px] left-4 h-0.5 bg-gradient-to-r from-cyan-400 via-amber-400 to-rose-500 transition-all duration-300"
+            style={{
+              width:
+                activeTimeStep === 'NOW'
+                  ? '0%'
+                  : activeTimeStep === '+1HR'
+                  ? '48%'
+                  : activeTimeStep === '+2HR'
+                  ? '74%'
+                  : '96%',
+            }}
+          />
 
-            const riskColor =
-              riskLabel === 'CRITICAL'
-                ? 'text-rose-400'
-                : riskLabel === 'HIGH'
-                ? 'text-orange-400'
-                : 'text-amber-400';
+          <div className="relative z-10 flex justify-between items-start">
+            {timelineSteps.map((step) => {
+              const isMatch =
+                step.id === activeTimeStep ||
+                (step.id === '+30MIN' && activeTimeStep === '+1HR');
+              return (
+                <button
+                  key={step.id}
+                  onClick={() => setTimeStep(step.targetStep)}
+                  className="flex flex-col items-center group focus:outline-none transition-transform active:scale-95"
+                >
+                  <div
+                    className={`w-4 h-4 rounded-full flex items-center justify-center transition-all ${
+                      isMatch
+                        ? 'bg-cyan-400 ring-4 ring-cyan-500/30 scale-110'
+                        : 'bg-[#121c2d] border border-slate-700 group-hover:border-cyan-400'
+                    }`}
+                  >
+                    <div
+                      className={`w-1.5 h-1.5 rounded-full ${
+                        isMatch ? 'bg-[#090e18]' : 'bg-slate-400 group-hover:bg-cyan-300'
+                      }`}
+                    />
+                  </div>
+                  <span
+                    className={`mt-1 text-[9px] font-mono font-medium ${
+                      isMatch ? 'text-cyan-300 font-bold' : 'text-slate-400 group-hover:text-slate-200'
+                    }`}
+                  >
+                    {step.label}
+                  </span>
+                  <span
+                    className={`text-[8px] font-mono font-bold ${
+                      step.depth.includes('100')
+                        ? 'text-rose-400'
+                        : step.depth.includes('80') || step.depth.includes('95')
+                        ? 'text-amber-400'
+                        : 'text-cyan-400'
+                    }`}
+                  >
+                    {step.depth}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
+      {/* 2. CRITICAL HAZARD ALERT CARD */}
+      <div className="relative overflow-hidden rounded-lg bg-gradient-to-br from-red-950/70 via-rose-950/40 to-[#0d1522] border border-rose-600/50 p-3 shadow-lg shadow-red-950/30">
+        <div className="flex items-start gap-2.5">
+          <div className="p-2 rounded-lg bg-red-600/20 text-rose-400 border border-red-500/40 shrink-0 mt-0.5">
+            <AlertTriangle className="w-4 h-4 animate-bounce" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="text-[10px] font-black uppercase tracking-wider text-white">
+                This area will become a RISK ZONE in 48 min
+              </span>
+            </div>
+            <div className="mt-1 flex items-center gap-2">
+              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-red-500/20 text-red-300 border border-red-500/40">
+                High Flood Probability
+              </span>
+            </div>
+            <p className="mt-1.5 text-[10px] text-rose-200/90 font-medium">
+              Take alternative route now.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* 3. AFFECTED ROADS (TOP 5) */}
+      <section className="space-y-1.5">
+        <div className="flex items-center justify-between border-b border-[#1e293b] pb-1">
+          <div className="flex items-center gap-1.5">
+            <Car className="w-3.5 h-3.5 text-rose-400" />
+            <h3 className="text-[11px] font-bold text-white tracking-tight uppercase">
+              Affected Roads (Top 5)
+            </h3>
+          </div>
+          <span className="text-[9px] text-slate-400 font-mono">Real-time projection</span>
+        </div>
+
+        <div className="space-y-1 bg-[#090e18]/80 rounded-lg p-1.5 border border-[#1e293b]">
+          {TOP_AFFECTED_ROADS.map((road) => {
+            const isHigh = road.risk === 'High';
+            const isMod = road.risk === 'Moderate';
+
+            const badgeBg = isHigh
+              ? 'bg-rose-500/20 text-rose-300 border-rose-500/40'
+              : isMod
+              ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+              : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40';
 
             return (
-              <button
-                key={step.timeStep}
-                onClick={() => setTimeStep(step.timeStep)}
-                className={`p-1.5 rounded text-left transition-all border ${
-                  isSelected
-                    ? 'bg-[#152033] border-cyan-500/80 shadow-sm ring-1 ring-cyan-500/30'
-                    : 'bg-[#090e18] border-[#1e293b] hover:border-slate-700'
-                }`}
+              <div
+                key={road.id}
+                onClick={() => {
+                  setTargetLocation({ lat: road.lat, lng: road.lng, zoom: 15, name: road.name });
+                }}
+                className="flex items-center justify-between py-1 px-1.5 rounded hover:bg-slate-800/60 cursor-pointer transition-colors group"
+                title={`Center map on ${road.name}`}
               >
-                <div className="flex items-center justify-between">
-                  <span className={`font-bold text-[11px] ${isSelected ? 'text-cyan-300' : 'text-slate-300'}`}>
-                    {step.timeStep === 'NOW' ? 'NOW' : step.label}
-                  </span>
-                  <span className={`text-[9px] font-bold ${riskColor}`}>
-                    {riskLabel}
+                <div className="flex flex-col">
+                  <div className="flex items-center gap-1">
+                    <span className="text-slate-200 font-medium text-[11px] group-hover:text-cyan-300 transition-colors">
+                      {road.name}
+                    </span>
+                    <MapPin className="w-2.5 h-2.5 text-slate-500 group-hover:text-cyan-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </div>
+                  <span className="text-[9px] font-mono text-slate-500">
+                    Est. Depth: <span className="text-slate-400">{road.depth}</span>
                   </span>
                 </div>
 
-                <div className="mt-1 space-y-0.5 text-[10px] text-slate-400 leading-tight">
-                  <div className="flex justify-between">
-                    <span>Rain:</span>
-                    <span className="text-slate-200 font-bold">{step.rainfallMmHr}mm/h</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Depth:</span>
-                    <span className={step.maxFloodDepthM > 0.5 ? 'text-rose-400 font-bold' : 'text-slate-200'}>
-                      {step.maxFloodDepthM.toFixed(2)}m
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Load:</span>
-                    <span className={step.drainageStressPct >= 100 ? 'text-orange-400 font-bold' : 'text-slate-200'}>
-                      {step.drainageStressPct}%
-                    </span>
-                  </div>
+                <div className="flex items-center gap-2">
+                  <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border ${badgeBg}`}>
+                    {road.risk}
+                  </span>
+                  <span className="text-[10px] font-mono text-slate-400 w-14 text-right">
+                    {road.timeToFlood}
+                  </span>
                 </div>
-              </button>
+              </div>
             );
           })}
         </div>
-      </div>
+      </section>
 
-      {/* 2. SCENARIO ALERT */}
-      <div className="space-y-2 pt-1 border-t border-[#1e293b]">
-        <div className="flex items-center justify-between">
-          <span className="text-[11px] font-bold text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
-            <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />
-            Scenario Alert
-          </span>
-          <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-300 border border-amber-500/30">
-            SIMULATED SCENARIO
-          </span>
-        </div>
-
-        {/* Conduit Surcharge Alert Card */}
-        <div
-          className={`p-2.5 rounded-lg border space-y-1.5 ${
-            isEdgeOverloaded
-              ? 'bg-red-950/40 border-red-500/50 text-red-200'
-              : 'bg-[#090e18] border-[#1e293b] text-slate-300'
-          }`}
-        >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1.5 font-bold text-white text-xs">
-              <GitBranch className="w-3.5 h-3.5 text-cyan-400" />
-              <span>CONDUIT {activeAlertEdge.id}</span>
-            </div>
-            <span
-              className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
-                isEdgeOverloaded
-                  ? 'bg-red-500/20 text-red-300 border border-red-500/40 animate-pulse'
-                  : 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40'
-              }`}
-            >
-              {isEdgeOverloaded ? 'FLOW > CAPACITY' : 'FLOW ≤ CAPACITY'}
-            </span>
+      {/* 4. SAFE ROUTE SUGGESTIONS */}
+      <section className="space-y-1.5">
+        <div className="flex items-center justify-between border-b border-[#1e293b] pb-1">
+          <div className="flex items-center gap-1.5">
+            <Route className="w-3.5 h-3.5 text-emerald-400" />
+            <h3 className="text-[11px] font-bold text-white tracking-tight uppercase">
+              Safe Route Suggestions
+            </h3>
           </div>
-
-          <div className="text-[10px] text-slate-400">
-            {activeAlertEdge.name}
-          </div>
-
-          {/* Flow vs Capacity Numbers */}
-          <div className="grid grid-cols-3 gap-1 text-center text-[10px] py-1 bg-black/30 rounded border border-white/5">
-            <div>
-              <div className="text-slate-400">Sim Flow</div>
-              <div className="font-bold text-cyan-300">{edgeState.flowM3s.toFixed(1)} m³/s</div>
-            </div>
-            <div>
-              <div className="text-slate-400">Capacity</div>
-              <div className="font-bold text-slate-200">{activeAlertEdge.designCapacityM3s.toFixed(1)} m³/s</div>
-            </div>
-            <div>
-              <div className="text-slate-400">Stress</div>
-              <div className={`font-bold ${edgeState.utilizationPct >= 100 ? 'text-red-400' : 'text-emerald-400'}`}>
-                {edgeState.utilizationPct}%
-              </div>
-            </div>
-          </div>
-
-          <div className="flex items-center justify-between text-[10px] pt-1 border-t border-current/20">
-            <span className="font-bold tracking-wider uppercase text-red-300">
-              {isEdgeOverloaded ? 'SURCHARGE CONDITION' : 'GRAVITY FLOW'}
-            </span>
-            <span className="text-slate-400 text-[9px]">
-              Dir: {activeAlertEdge.fromNode} → {activeAlertEdge.toNode}
-            </span>
-          </div>
-        </div>
-      </div>
-
-      {/* 3. AFFECTED ROADS */}
-      <div className="space-y-1.5 pt-1 border-t border-[#1e293b]">
-        <div className="flex items-center justify-between">
-          <span className="text-[11px] font-bold text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
-            <Car className="w-3.5 h-3.5 text-rose-400" />
-            Affected Roads
-          </span>
-          <span className="text-[10px] text-slate-500">{activeTimeStep} Forecast</span>
-        </div>
-
-        <div className="space-y-1 bg-[#090e18] p-2 rounded border border-[#1e293b]">
-          {roadRiskList.map((road) => (
-            <div
-              key={road.name}
-              className="flex items-center justify-between py-1 text-[11px] border-b border-slate-800/60 last:border-0"
-            >
-              <div className="flex flex-col">
-                <span className="text-slate-200 font-medium">{road.name}</span>
-                <span className="text-[9px] text-slate-500">Depth: {road.depth}</span>
-              </div>
-              <span className={`text-[9px] font-bold px-2 py-0.5 rounded border ${road.badge}`}>
-                {road.status}
-              </span>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* 4. LOWER-EXPOSURE ROUTE */}
-      <div className="space-y-1.5 pt-1 border-t border-[#1e293b]">
-        <div className="flex items-center justify-between">
-          <span className="text-[11px] font-bold text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
-            <Navigation className="w-3.5 h-3.5 text-emerald-400" />
-            Lower-Exposure Route
-          </span>
-          <span className="text-[10px] text-slate-500">Preview</span>
-        </div>
-
-        <div className="p-2 bg-[#090e18] rounded border border-[#1e293b] space-y-1.5">
-          <div className="flex items-center justify-between text-[11px] font-bold text-white">
-            <span>{routePreview.origin.split(' ')[0]} → {routePreview.destination.split(' ')[0]}</span>
-            <span className="text-emerald-400 text-[10px]">PASSABLE</span>
-          </div>
-
-          <div className="grid grid-cols-2 gap-1.5 text-[10px]">
-            <div className="p-1 rounded bg-red-950/20 border border-red-500/20">
-              <div className="text-slate-400">Normal Direct</div>
-              <div className="text-slate-300 font-bold">{routePreview.normalRoute.distanceKm} km</div>
-              <div className="text-red-400 font-bold">Max {routePreview.normalRoute.maxDepthM}m</div>
-            </div>
-
-            <div className="p-1 rounded bg-emerald-950/20 border border-emerald-500/20">
-              <div className="text-slate-400">Flood-Safe</div>
-              <div className="text-slate-300 font-bold">{routePreview.safeRoute.distanceKm} km</div>
-              <div className="text-emerald-400 font-bold">Max {routePreview.safeRoute.maxDepthM}m</div>
-            </div>
-          </div>
-
           <button
             onClick={() => setActiveTab('route')}
-            className="w-full py-1.5 px-2 rounded bg-[#152033] hover:bg-cyan-950 text-cyan-300 hover:text-cyan-200 border border-cyan-800/60 text-[10px] transition-colors flex items-center justify-center gap-1 font-bold"
+            className="text-[9px] text-cyan-400 hover:text-cyan-300 flex items-center gap-0.5 transition-colors"
           >
-            <span>Open Safe Route Analysis</span>
-            <ArrowRight className="w-3 h-3" />
+            <span>Full Analysis</span>
+            <ChevronRight className="w-2.5 h-2.5" />
           </button>
         </div>
-      </div>
-    </div>
+
+        <div className="space-y-1.5">
+          {/* 1. Emergency Services */}
+          <div
+            onClick={() => {
+              setTargetLocation({ lat: 26.1380, lng: 91.7950, zoom: 14, name: 'NH 17 Corridor' });
+            }}
+            className="p-2 rounded-lg bg-[#090e18]/90 border border-emerald-500/30 hover:border-emerald-400/60 cursor-pointer transition-all hover:bg-emerald-950/20 group"
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                <div className="p-1 rounded bg-emerald-500/20 text-emerald-400">
+                  <Siren className="w-3 h-3" />
+                </div>
+                <span className="font-bold text-white text-[11px] group-hover:text-emerald-300 transition-colors">
+                  Emergency Services
+                </span>
+              </div>
+              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                Clear
+              </span>
+            </div>
+            <div className="mt-1 flex items-center justify-between text-[10px] text-slate-300">
+              <span className="font-mono">via NH 17</span>
+              <span className="font-mono text-emerald-400 font-semibold">+8 min transit</span>
+            </div>
+          </div>
+
+          {/* 2. Commuters */}
+          <div
+            onClick={() => {
+              setTargetLocation({ lat: 26.1550, lng: 91.7760, zoom: 14, name: 'Zoo Rd Corridor' });
+            }}
+            className="p-2 rounded-lg bg-[#090e18]/90 border border-cyan-500/30 hover:border-cyan-400/60 cursor-pointer transition-all hover:bg-cyan-950/20 group"
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                <div className="p-1 rounded bg-cyan-500/20 text-cyan-400">
+                  <Car className="w-3 h-3" />
+                </div>
+                <span className="font-bold text-white text-[11px] group-hover:text-cyan-300 transition-colors">
+                  Commuters
+                </span>
+              </div>
+              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/40">
+                Recommended
+              </span>
+            </div>
+            <div className="mt-1 flex items-center justify-between text-[10px] text-slate-300">
+              <span className="font-mono truncate pr-1">Zoo Rd → GS Rd → Dispur</span>
+              <span className="font-mono text-cyan-400 font-semibold shrink-0">+12 min transit</span>
+            </div>
+          </div>
+
+          {/* 3. Traffic Authorities */}
+          <div
+            onClick={() => {
+              setTargetLocation({ lat: 26.1265, lng: 91.8080, zoom: 15, name: 'Khanapara Diversion' });
+            }}
+            className="p-2 rounded-lg bg-[#090e18]/90 border border-rose-500/30 hover:border-rose-400/60 cursor-pointer transition-all hover:bg-rose-950/20 group"
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                <div className="p-1 rounded bg-rose-500/20 text-rose-400">
+                  <Navigation className="w-3 h-3" />
+                </div>
+                <span className="font-bold text-white text-[11px] group-hover:text-rose-300 transition-colors">
+                  Traffic Authorities
+                </span>
+              </div>
+              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-300 border border-rose-500/40">
+                Divert Traffic
+              </span>
+            </div>
+            <div className="mt-1 text-[10px] text-slate-300 font-mono">
+              Divert traffic from Khanapara junction
+            </div>
+          </div>
+        </div>
+
+        <button
+          onClick={() => setActiveTab('route')}
+          className="w-full mt-1 py-1.5 px-2 rounded-lg bg-[#142033] hover:bg-cyan-950 text-cyan-300 hover:text-cyan-200 border border-cyan-800/60 text-[10px] transition-all flex items-center justify-center gap-1.5 font-bold shadow"
+        >
+          <span>Open Safe Route Analysis View</span>
+          <ArrowRight className="w-3 h-3" />
+        </button>
+      </section>
+    </aside>
   );
 };
+
