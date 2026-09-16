@@ -6,6 +6,7 @@ import { DRAINAGE_EDGES } from '../../data/drainageEdges';
 import { FLOOD_ZONES } from '../../data/floodZones';
 import { NATURAL_WATERWAYS } from '../../data/naturalDrainage';
 import { ROAD_SEGMENTS } from '../../data/roads';
+import { RAINFALL_SCENARIOS } from '../../data/rainfallScenario';
 import {
   Play,
   Pause,
@@ -41,6 +42,7 @@ export const GisMap: React.FC<GisMapProps> = () => {
     runNowcast,
     pauseNowcast,
     activeLayers,
+    toggleLayer,
     baseMapMode,
     selectedNode,
     setSelectedNode,
@@ -56,15 +58,6 @@ export const GisMap: React.FC<GisMapProps> = () => {
     mapMode,
     setMapMode,
   } = useSimulation();
-
-  // In-map manual layer overrides
-  const [mapLayers, setMapLayers] = useState({
-    floodExtent: true,
-    hotspots: true,
-    naturalDrainage: true,
-    drainageNetwork: false,
-    roadRisk: true,
-  });
 
   const activeHotspot = FLOOD_ZONES.find((z) => z.id === selectedHotspotId) || null;
 
@@ -161,89 +154,125 @@ export const GisMap: React.FC<GisMapProps> = () => {
     const isRoadRiskMode = mapMode === 'road_risk';
 
     // -------------------------------------------------------------
+    // 0. RAINFALL NOWCAST (Convective Radar Precipitation Overlay)
+    // -------------------------------------------------------------
+    if (activeLayers.rainfallNowcast) {
+      const rainfall = RAINFALL_SCENARIOS[activeTimeStep];
+      const intensity = rainfall.rainfallIntensityMmHr;
+      const radarColor = intensity > 80 ? '#ef4444' : intensity > 50 ? '#f97316' : '#06b6d4';
+
+      const stormPolygon: [number, number][] = [
+        [26.1100, 91.7300],
+        [26.1350, 91.6950],
+        [26.1750, 91.7100],
+        [26.1850, 91.7500],
+        [26.1820, 91.8150],
+        [26.1550, 91.8450],
+        [26.1150, 91.8350],
+      ];
+      const radarPoly = L.polygon(stormPolygon, {
+        color: radarColor,
+        weight: 1.8,
+        dashArray: '5, 5',
+        fillColor: radarColor,
+        fillOpacity: activeTimeStep === 'NOW' ? 0.08 : activeTimeStep === '+1HR' ? 0.14 : activeTimeStep === '+2HR' ? 0.20 : 0.26,
+      });
+      radarPoly.bindTooltip(
+        `<div class="font-sans text-xs">
+          <strong class="text-cyan-300">Simulated Convective Radar Cell</strong><br/>
+          Nowcast Intensity: <span class="font-bold text-white">${intensity.toFixed(0)} mm/hr</span> (${activeTimeStep})<br/>
+          <span class="text-slate-400 text-[10px]">Doppler Radar Horizon (0–3 hrs)</span>
+        </div>`,
+        { sticky: true, className: 'leaflet-dark-tooltip' }
+      );
+      overlayGroup.addLayer(radarPoly);
+    }
+
+    // -------------------------------------------------------------
     // A. NATURAL WATERWAYS & BASINS (Blue / Cyan)
     // -------------------------------------------------------------
-    NATURAL_WATERWAYS.forEach((nw) => {
-      // Wetland / Lake Polygons (Deepor Beel, Silsako Beel)
-      if (nw.polygon) {
-        const latLngs: [number, number][] = nw.polygon.map((c) => [c[0], c[1]]);
-        const poly = L.polygon(latLngs, {
-          color: '#38bdf8',
-          weight: isFloodDrainageMode ? 2.5 : 1.5,
-          fillColor: '#0284c7',
-          fillOpacity: isFloodDrainageMode ? 0.45 : 0.25,
-        });
-        poly.bindTooltip(
-          `<div class="font-sans text-xs">
-            <strong class="text-cyan-300">${nw.name}</strong><br/>
-            <span class="text-slate-300 text-[10px]">${nw.capacityRole}</span>
-          </div>`,
-          { sticky: true, className: 'leaflet-dark-tooltip' }
-        );
-        overlayGroup.addLayer(poly);
-      }
-
-      // Natural Drainage Stream / River Channels (Bharalu, Bahini, Mora Bharalu, Basistha, Lakhimijan, Bondajan)
-      if (nw.path) {
-        const latLngs: [number, number][] = nw.path.map((c) => [c[0], c[1]]);
-
-        if (isFloodDrainageMode) {
-          const glowLine = L.polyline(latLngs, {
-            color: '#00d2ff',
-            weight: 8,
-            opacity: 0.35,
-            lineCap: 'round',
+    if (activeLayers.naturalDrainage !== false) {
+      NATURAL_WATERWAYS.forEach((nw) => {
+        // Wetland / Lake Polygons (Deepor Beel, Silsako Beel)
+        if (nw.polygon) {
+          const latLngs: [number, number][] = nw.polygon.map((c) => [c[0], c[1]]);
+          const poly = L.polygon(latLngs, {
+            color: '#38bdf8',
+            weight: isFloodDrainageMode ? 2.5 : 1.5,
+            fillColor: '#0284c7',
+            fillOpacity: isFloodDrainageMode ? 0.45 : 0.25,
           });
-          overlayGroup.addLayer(glowLine);
+          poly.bindTooltip(
+            `<div class="font-sans text-xs">
+              <strong class="text-cyan-300">${nw.name}</strong><br/>
+              <span class="text-slate-300 text-[10px]">${nw.capacityRole}</span>
+            </div>`,
+            { sticky: true, className: 'leaflet-dark-tooltip' }
+          );
+          overlayGroup.addLayer(poly);
         }
 
-        const channelLine = L.polyline(latLngs, {
-          color: '#00d2ff',
-          weight: isFloodDrainageMode ? 4.5 : 2.5,
-          opacity: isFloodDrainageMode ? 0.95 : 0.6,
-          lineCap: 'round',
-        });
+        // Natural Drainage Stream / River Channels (Bharalu, Bahini, Mora Bharalu, Basistha, Lakhimijan, Bondajan)
+        if (nw.path) {
+          const latLngs: [number, number][] = nw.path.map((c) => [c[0], c[1]]);
 
-        channelLine.bindTooltip(
-          `<div class="font-sans text-xs">
-            <strong class="text-cyan-300">${nw.name} (Natural Drainage)</strong><br/>
-            <span class="text-slate-300 text-[10px]">${nw.capacityRole}</span>
-          </div>`,
-          { sticky: true, className: 'leaflet-dark-tooltip' }
-        );
-        overlayGroup.addLayer(channelLine);
-      }
-    });
+          if (isFloodDrainageMode) {
+            const glowLine = L.polyline(latLngs, {
+              color: '#00d2ff',
+              weight: 8,
+              opacity: 0.35,
+              lineCap: 'round',
+            });
+            overlayGroup.addLayer(glowLine);
+          }
 
-    // Brahmaputra River label marker
-    const riverLabelIcon = L.divIcon({
-      className: 'river-label-marker',
-      html: `
-        <div style="
-          transform: rotate(-32deg);
-          color: #7dd3fc;
-          font-family: 'Inter', sans-serif;
-          font-size: 13px;
-          font-weight: 600;
-          letter-spacing: 2px;
-          text-shadow: 0 0 8px rgba(0,0,0,0.9), 0 2px 4px rgba(0,0,0,0.8);
-          opacity: 0.85;
-          pointer-events: none;
-          white-space: nowrap;
-        ">
-          Brahmaputra River
-        </div>
-      `,
-      iconSize: [160, 30],
-      iconAnchor: [80, 15],
-    });
-    overlayGroup.addLayer(L.marker([26.1950, 91.7380], { icon: riverLabelIcon }));
+          const channelLine = L.polyline(latLngs, {
+            color: '#00d2ff',
+            weight: isFloodDrainageMode ? 4.5 : 2.5,
+            opacity: isFloodDrainageMode ? 0.95 : 0.6,
+            lineCap: 'round',
+          });
+
+          channelLine.bindTooltip(
+            `<div class="font-sans text-xs">
+              <strong class="text-cyan-300">${nw.name} (Natural Drainage)</strong><br/>
+              <span class="text-slate-300 text-[10px]">${nw.capacityRole}</span>
+            </div>`,
+            { sticky: true, className: 'leaflet-dark-tooltip' }
+          );
+          overlayGroup.addLayer(channelLine);
+        }
+      });
+
+      // Brahmaputra River label marker
+      const riverLabelIcon = L.divIcon({
+        className: 'river-label-marker',
+        html: `
+          <div style="
+            transform: rotate(-32deg);
+            color: #7dd3fc;
+            font-family: 'Inter', sans-serif;
+            font-size: 13px;
+            font-weight: 600;
+            letter-spacing: 2px;
+            text-shadow: 0 0 8px rgba(0,0,0,0.9), 0 2px 4px rgba(0,0,0,0.8);
+            opacity: 0.85;
+            pointer-events: none;
+            white-space: nowrap;
+          ">
+            Brahmaputra River
+          </div>
+        `,
+        iconSize: [160, 30],
+        iconAnchor: [80, 15],
+      });
+      overlayGroup.addLayer(L.marker([26.1950, 91.7380], { icon: riverLabelIcon }));
+    }
 
     // -------------------------------------------------------------
     // B. REPRESENTATIVE MAN-MADE DRAINAGE (Purple / Orange)
-    // Shown prominently in FLOOD & DRAINAGE mode, or when manually enabled
     // -------------------------------------------------------------
-    const showDrainageNetwork = isFloodDrainageMode || mapLayers.drainageNetwork;
+    const showDrainageNetwork = Boolean(activeLayers.drainageNetwork);
 
     if (showDrainageNetwork) {
       // Conduits & Feeder links
@@ -256,7 +285,7 @@ export const GisMap: React.FC<GisMapProps> = () => {
         const isOverloaded = edgeState.flowM3s > edge.designCapacityM3s;
         const isWarning = edgeState.utilizationPct >= 85;
 
-        // Visual distinction per Section 5: Purple normal/warning, Orange/Red overloaded
+        // Visual distinction: Purple normal/warning, Orange/Red overloaded
         const edgeColor = isOverloaded ? '#f97316' : isWarning ? '#c084fc' : '#a855f7';
         const weight = isOverloaded ? 3.8 : 2.5;
 
@@ -328,10 +357,11 @@ export const GisMap: React.FC<GisMapProps> = () => {
     }
 
     // -------------------------------------------------------------
-    // C. PERSISTENT FLOOD EXTENT POLYGONS (Subtle transparent polygons)
-    // Visible in BOTH modes
+    // C. PERSISTENT FLOOD EXTENT POLYGONS & WATER DEPTH FILL
     // -------------------------------------------------------------
-    if (mapLayers.floodExtent) {
+    if (activeLayers.predictedFloodZones) {
+      const showDepthFill = activeLayers.waterDepth !== false;
+
       FLOOD_ZONES.forEach((zone) => {
         const zState = zone.timesteps[activeTimeStep];
         const depth = zState.depthM;
@@ -339,7 +369,7 @@ export const GisMap: React.FC<GisMapProps> = () => {
         let fillColor = '#06b6d4';
         let strokeColor = '#0891b2';
         let fillOpacity = 0.18;
-        let strokeWidth = 1;
+        let strokeWidth = 1.2;
 
         if (depth > 0.60) {
           fillColor = '#ef4444';
@@ -350,12 +380,12 @@ export const GisMap: React.FC<GisMapProps> = () => {
           fillColor = '#f97316';
           strokeColor = '#ea580c';
           fillOpacity = 0.25;
-          strokeWidth = 1.3;
+          strokeWidth = 1.4;
         } else if (depth > 0.15) {
           fillColor = '#eab308';
           strokeColor = '#ca8a04';
           fillOpacity = 0.22;
-          strokeWidth = 1.1;
+          strokeWidth = 1.2;
         }
 
         const latLngs: [number, number][] = zone.polygon.map((c) => [c[0], c[1]]);
@@ -363,14 +393,14 @@ export const GisMap: React.FC<GisMapProps> = () => {
           color: strokeColor,
           weight: strokeWidth,
           fillColor: fillColor,
-          fillOpacity: fillOpacity,
+          fillOpacity: showDepthFill ? fillOpacity : 0,
           dashArray: depth > 0.60 ? '4, 4' : undefined,
         });
 
         poly.bindTooltip(
           `<div class="font-sans text-xs">
             <strong>${zone.name}</strong><br/>
-            Simulated Flood Depth: <span class="text-cyan-300 font-bold">${depth.toFixed(2)} m</span> (${zState.risk.toUpperCase()})<br/>
+            ${showDepthFill ? `Simulated Flood Depth: <span class="text-cyan-300 font-bold">${depth.toFixed(2)} m</span> (${zState.risk.toUpperCase()})<br/>` : '<span class="text-slate-400 text-[10px]">Flood Zone Boundary (Depth fill hidden)</span><br/>'}
             <span class="text-slate-400 text-[10px]">${zState.primaryBottleneck}</span>
           </div>`,
           { sticky: true, className: 'leaflet-dark-tooltip' }
@@ -387,132 +417,120 @@ export const GisMap: React.FC<GisMapProps> = () => {
 
     // -------------------------------------------------------------
     // D. ROAD NETWORK & ROAD RISK (Coupled overland impact)
-    // Primary focus in ROAD RISK mode; Subdued in FLOOD & DRAINAGE mode
     // -------------------------------------------------------------
-    ROAD_SEGMENTS.forEach((road) => {
-      const rState = road.timesteps[activeTimeStep];
-      const riskState = rState.riskState;
-      const isSelected = selectedRoad?.id === road.id;
-      const isFiltered = roadRiskFilter !== 'ALL' && riskState !== roadRiskFilter;
+    if (activeLayers.roadNetwork) {
+      ROAD_SEGMENTS.forEach((road) => {
+        const rState = road.timesteps[activeTimeStep];
+        const riskState = rState.riskState;
+        const isSelected = selectedRoad?.id === road.id;
+        const isFiltered = roadRiskFilter !== 'ALL' && riskState !== roadRiskFilter;
 
-      // In FLOOD & DRAINAGE mode: subdue roads to keep focus on water movement
-      let opacity = isFloodDrainageMode ? 0.15 : isFiltered ? 0.15 : 0.88;
-      let weight = isFloodDrainageMode ? 2.0 : 3.5;
-      let color = '#22c55e';
-      let dashArray: string | undefined = undefined;
+        let opacity = isFloodDrainageMode ? 0.15 : isFiltered ? 0.15 : 0.88;
+        let weight = isFloodDrainageMode ? 2.0 : 3.5;
+        let color = '#22c55e';
+        let dashArray: string | undefined = undefined;
 
-      if (riskState === 'BLOCKED') {
-        color = '#ef4444';
-        weight = isFloodDrainageMode ? 3.0 : 6.5;
-        opacity = isFloodDrainageMode ? 0.35 : isFiltered ? 0.20 : 1.0;
-        dashArray = '8, 6';
-      } else if (riskState === 'HIGH RISK') {
-        color = '#f97316';
-        weight = isFloodDrainageMode ? 2.5 : 5.2;
-        opacity = isFloodDrainageMode ? 0.25 : isFiltered ? 0.20 : 0.95;
-      } else if (riskState === 'MODERATE') {
-        color = '#eab308';
-        weight = isFloodDrainageMode ? 2.2 : 4.2;
-        opacity = isFloodDrainageMode ? 0.20 : isFiltered ? 0.18 : 0.92;
-      }
+        if (riskState === 'BLOCKED') {
+          color = '#ef4444';
+          weight = isFloodDrainageMode ? 3.0 : 6.5;
+          opacity = isFloodDrainageMode ? 0.35 : isFiltered ? 0.20 : 1.0;
+          dashArray = '8, 6';
+        } else if (riskState === 'HIGH RISK') {
+          color = '#f97316';
+          weight = isFloodDrainageMode ? 2.5 : 5.2;
+          opacity = isFloodDrainageMode ? 0.25 : isFiltered ? 0.20 : 0.95;
+        } else if (riskState === 'MODERATE') {
+          color = '#eab308';
+          weight = isFloodDrainageMode ? 2.2 : 4.2;
+          opacity = isFloodDrainageMode ? 0.20 : isFiltered ? 0.18 : 0.92;
+        }
 
-      const coords = (road.path && road.path.length > 0) ? road.path : road.geometry;
-      if (!coords || coords.length === 0) return;
-      const latLngs: [number, number][] = coords.map((c) => (c[0] > 70 ? [c[1], c[0]] : [c[0], c[1]]));
+        const coords = (road.path && road.path.length > 0) ? road.path : road.geometry;
+        if (!coords || coords.length === 0) return;
+        const latLngs: [number, number][] = coords.map((c) => (c[0] > 70 ? [c[1], c[0]] : [c[0], c[1]]));
 
-      // Selection Highlight
-      if (isSelected) {
-        const glowLine = L.polyline(latLngs, {
-          color: '#38bdf8',
-          weight: 12,
-          opacity: 0.9,
+        // Selection Highlight
+        if (isSelected) {
+          const glowLine = L.polyline(latLngs, {
+            color: '#38bdf8',
+            weight: 12,
+            opacity: 0.9,
+            lineCap: 'round',
+          });
+          overlayGroup.addLayer(glowLine);
+        }
+
+        const roadLine = L.polyline(latLngs, {
+          color: isFiltered ? '#475569' : color,
+          weight: isFiltered ? 2 : weight,
+          opacity: opacity,
+          dashArray: isFiltered ? undefined : dashArray,
           lineCap: 'round',
         });
-        overlayGroup.addLayer(glowLine);
-      }
 
-      const roadLine = L.polyline(latLngs, {
-        color: isFiltered ? '#475569' : color,
-        weight: isFiltered ? 2 : weight,
-        opacity: opacity,
-        dashArray: isFiltered ? undefined : dashArray,
-        lineCap: 'round',
-      });
+        roadLine.bindTooltip(
+          `<div class="font-sans text-xs">
+            <strong class="text-white">${road.name}</strong> <span class="text-[10px] text-cyan-400">(${road.id})</span><br/>
+            <span class="text-[10px] text-slate-400">OSM Way: ${road.osmId || 'N/A'}${road.highwayType ? ` • ${road.highwayType}` : ''}</span><br/>
+            Status: <span style="font-weight:bold; color: ${
+              riskState === 'BLOCKED'
+                ? '#ef4444'
+                : riskState === 'HIGH RISK'
+                ? '#f97316'
+                : riskState === 'MODERATE'
+                ? '#eab308'
+                : '#22c55e'
+            };">${riskState === 'BLOCKED' ? 'BLOCKED' : riskState}</span><br/>
+            Simulated Depth: <span class="font-mono text-cyan-300 font-semibold">${rState.waterDepthM.toFixed(2)} m</span><br/>
+            Drainage Stress: <span class="font-mono text-slate-300">${rState.drainageStressPct || 85}%</span>
+          </div>`,
+          { sticky: true, className: 'leaflet-dark-tooltip' }
+        );
 
-      roadLine.bindTooltip(
-        `<div class="font-sans text-xs">
-          <strong class="text-white">${road.name}</strong> <span class="text-[10px] text-cyan-400">(${road.id})</span><br/>
-          <span class="text-[10px] text-slate-400">OSM Way: ${road.osmId || 'N/A'}${road.highwayType ? ` • ${road.highwayType}` : ''}</span><br/>
-          Status: <span style="font-weight:bold; color: ${
-            riskState === 'BLOCKED'
-              ? '#ef4444'
-              : riskState === 'HIGH RISK'
-              ? '#f97316'
-              : riskState === 'MODERATE'
-              ? '#eab308'
-              : '#22c55e'
-          };">${riskState === 'BLOCKED' ? 'BLOCKED' : riskState}</span><br/>
-          Simulated Depth: <span class="font-mono text-cyan-300 font-semibold">${rState.waterDepthM.toFixed(2)} m</span><br/>
-          Drainage Stress: <span class="font-mono text-slate-300">${rState.drainageStressPct || 85}%</span>
-        </div>`,
-        { sticky: true, className: 'leaflet-dark-tooltip' }
-      );
-
-      roadLine.on('click', () => {
-        focusRoad(road);
-        setSelectedHotspotId(null);
-      });
-
-      overlayGroup.addLayer(roadLine);
-
-      // In ROAD RISK mode: Add ⛔ barrier markers on BLOCKED segments
-      if (isRoadRiskMode && riskState === 'BLOCKED' && !isFiltered && latLngs.length > 0) {
-        const midIdx = Math.floor(latLngs.length / 2);
-        const midCoord = latLngs[midIdx];
-        const barrierIcon = L.divIcon({
-          className: 'barrier-marker',
-          html: `
-            <div style="
-              width: 22px;
-              height: 22px;
-              border-radius: 50%;
-              background: #dc2626;
-              border: 2px solid #ffffff;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              box-shadow: 0 2px 10px rgba(0,0,0,0.85);
-              cursor: pointer;
-            " title="${road.name} - BLOCKED">
-              <span style="width: 10px; height: 3px; background: white; border-radius: 1px;"></span>
-            </div>
-          `,
-          iconSize: [22, 22],
-          iconAnchor: [11, 11],
+        roadLine.on('click', () => {
+          focusRoad(road);
+          setSelectedHotspotId(null);
         });
-        const barrierMarker = L.marker(midCoord, { icon: barrierIcon });
-        barrierMarker.on('click', () => focusRoad(road));
-        overlayGroup.addLayer(barrierMarker);
-      }
-    });
+
+        overlayGroup.addLayer(roadLine);
+
+        // In ROAD RISK mode: Add ⛔ barrier markers on BLOCKED segments
+        if (isRoadRiskMode && riskState === 'BLOCKED' && !isFiltered && latLngs.length > 0) {
+          const midIdx = Math.floor(latLngs.length / 2);
+          const midCoord = latLngs[midIdx];
+          const barrierIcon = L.divIcon({
+            className: 'barrier-marker',
+            html: `
+              <div style="
+                width: 22px;
+                height: 22px;
+                border-radius: 50%;
+                background: #dc2626;
+                border: 2px solid #ffffff;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                box-shadow: 0 2px 10px rgba(0,0,0,0.85);
+                cursor: pointer;
+              " title="${road.name} - BLOCKED">
+                <span style="width: 10px; height: 3px; background: white; border-radius: 1px;"></span>
+              </div>
+            `,
+            iconSize: [22, 22],
+            iconAnchor: [11, 11],
+          });
+          const barrierMarker = L.marker(midCoord, { icon: barrierIcon });
+          barrierMarker.on('click', () => focusRoad(road));
+          overlayGroup.addLayer(barrierMarker);
+        }
+      });
+    }
 
     // -------------------------------------------------------------
-    // E. FLOOD HOTSPOTS (⚠️) - PERSISTENT ACROSS MODES
+    // E. FLOOD HOTSPOTS (⚠️) - Mapped directly from FLOOD_ZONES
     // -------------------------------------------------------------
-    if (mapLayers.hotspots) {
-      const hotspotsData = [
-        { id: 'FZ-01', name: 'Anil Nagar', lat: 26.1755, lng: 91.7725 },
-        { id: 'FZ-02', name: 'GS Road (Bhangagarh)', lat: 26.1575, lng: 91.7710 },
-        { id: 'FZ-03', name: 'Zoo Road', lat: 26.1650, lng: 91.7830 },
-        { id: 'FZ-04', name: 'Rukminigaon', lat: 26.1395, lng: 91.8000 },
-        { id: 'FZ-05', name: 'Hatigaon - Bhetapara', lat: 26.1340, lng: 91.7790 },
-        { id: 'FZ-06', name: 'Bharalumukh', lat: 26.1735, lng: 91.7265 },
-        { id: 'FZ-07', name: 'Ulubari', lat: 26.1695, lng: 91.7610 },
-        { id: 'FZ-08', name: 'Boragaon Bypass', lat: 26.1350, lng: 91.7080 },
-        { id: 'FZ-09', name: 'Khanapara Basin', lat: 26.1260, lng: 91.8150 },
-      ];
-
-      hotspotsData.forEach((spot) => {
+    if (activeLayers.historicalHotspots) {
+      FLOOD_ZONES.forEach((spot) => {
         const hazardIcon = L.divIcon({
           className: 'hazard-hotspot-marker',
           html: `
@@ -537,7 +555,7 @@ export const GisMap: React.FC<GisMapProps> = () => {
           iconAnchor: [12, 12],
         });
 
-        const marker = L.marker([spot.lat, spot.lng], { icon: hazardIcon });
+        const marker = L.marker([spot.center[0], spot.center[1]], { icon: hazardIcon });
         marker.bindTooltip(
           `<div class="font-sans text-xs">
             <strong>${spot.name}</strong><br/>
@@ -593,7 +611,7 @@ export const GisMap: React.FC<GisMapProps> = () => {
     roadRiskFilter,
     selectedRoad,
     selectedHotspotId,
-    mapLayers,
+    activeLayers,
   ]);
 
   // Controls
@@ -681,8 +699,8 @@ export const GisMap: React.FC<GisMapProps> = () => {
               <label className="flex items-center gap-2 cursor-pointer hover:text-white">
                 <input
                   type="checkbox"
-                  checked={mapLayers.roadRisk}
-                  onChange={(e) => setMapLayers((prev) => ({ ...prev, roadRisk: e.target.checked }))}
+                  checked={Boolean(activeLayers.roadNetwork)}
+                  onChange={() => toggleLayer('roadNetwork')}
                   className="rounded border-slate-700 bg-slate-900 text-emerald-500 focus:ring-0 focus:ring-offset-0 w-3.5 h-3.5 cursor-pointer accent-emerald-500"
                 />
                 <span className="flex items-center gap-1.5">
@@ -694,9 +712,8 @@ export const GisMap: React.FC<GisMapProps> = () => {
               <label className="flex items-center gap-2 cursor-pointer hover:text-white">
                 <input
                   type="checkbox"
-                  checked={mapMode === 'flood_drainage' ? true : mapLayers.drainageNetwork}
-                  disabled={mapMode === 'flood_drainage'}
-                  onChange={(e) => setMapLayers((prev) => ({ ...prev, drainageNetwork: e.target.checked }))}
+                  checked={Boolean(activeLayers.drainageNetwork)}
+                  onChange={() => toggleLayer('drainageNetwork')}
                   className="rounded border-slate-700 bg-slate-900 text-purple-500 focus:ring-0 focus:ring-offset-0 w-3.5 h-3.5 cursor-pointer accent-purple-500"
                 />
                 <span className="flex items-center gap-1.5">
@@ -708,8 +725,8 @@ export const GisMap: React.FC<GisMapProps> = () => {
               <label className="flex items-center gap-2 cursor-pointer hover:text-white">
                 <input
                   type="checkbox"
-                  checked={mapLayers.naturalDrainage}
-                  onChange={(e) => setMapLayers((prev) => ({ ...prev, naturalDrainage: e.target.checked }))}
+                  checked={activeLayers.naturalDrainage !== false}
+                  onChange={() => toggleLayer('naturalDrainage')}
                   className="rounded border-slate-700 bg-slate-900 text-cyan-500 focus:ring-0 focus:ring-offset-0 w-3.5 h-3.5 cursor-pointer accent-cyan-500"
                 />
                 <span className="flex items-center gap-1.5">
@@ -721,8 +738,8 @@ export const GisMap: React.FC<GisMapProps> = () => {
               <label className="flex items-center gap-2 cursor-pointer hover:text-white">
                 <input
                   type="checkbox"
-                  checked={mapLayers.floodExtent}
-                  onChange={(e) => setMapLayers((prev) => ({ ...prev, floodExtent: e.target.checked }))}
+                  checked={Boolean(activeLayers.predictedFloodZones)}
+                  onChange={() => toggleLayer('predictedFloodZones')}
                   className="rounded border-slate-700 bg-slate-900 text-blue-500 focus:ring-0 focus:ring-offset-0 w-3.5 h-3.5 cursor-pointer accent-blue-500"
                 />
                 <span className="flex items-center gap-1.5">
@@ -734,13 +751,39 @@ export const GisMap: React.FC<GisMapProps> = () => {
               <label className="flex items-center gap-2 cursor-pointer hover:text-white">
                 <input
                   type="checkbox"
-                  checked={mapLayers.hotspots}
-                  onChange={(e) => setMapLayers((prev) => ({ ...prev, hotspots: e.target.checked }))}
+                  checked={activeLayers.waterDepth !== false}
+                  onChange={() => toggleLayer('waterDepth')}
+                  className="rounded border-slate-700 bg-slate-900 text-cyan-400 focus:ring-0 focus:ring-offset-0 w-3.5 h-3.5 cursor-pointer accent-cyan-400"
+                />
+                <span className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-cyan-400"></span>
+                  Water Depth Fill
+                </span>
+              </label>
+
+              <label className="flex items-center gap-2 cursor-pointer hover:text-white">
+                <input
+                  type="checkbox"
+                  checked={Boolean(activeLayers.historicalHotspots)}
+                  onChange={() => toggleLayer('historicalHotspots')}
                   className="rounded border-slate-700 bg-slate-900 text-amber-500 focus:ring-0 focus:ring-offset-0 w-3.5 h-3.5 cursor-pointer accent-amber-500"
                 />
                 <span className="flex items-center gap-1.5">
                   <span className="w-2 h-2 rounded-full bg-amber-400"></span>
                   Hotspot Markers
+                </span>
+              </label>
+
+              <label className="flex items-center gap-2 cursor-pointer hover:text-white">
+                <input
+                  type="checkbox"
+                  checked={Boolean(activeLayers.rainfallNowcast)}
+                  onChange={() => toggleLayer('rainfallNowcast')}
+                  className="rounded border-slate-700 bg-slate-900 text-rose-500 focus:ring-0 focus:ring-offset-0 w-3.5 h-3.5 cursor-pointer accent-rose-500"
+                />
+                <span className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-rose-400"></span>
+                  Rainfall Nowcast
                 </span>
               </label>
             </div>

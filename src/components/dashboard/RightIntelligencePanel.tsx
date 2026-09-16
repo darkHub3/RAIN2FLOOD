@@ -63,6 +63,22 @@ export const RightIntelligencePanel: React.FC = () => {
       .slice(0, 5);
   }, [activeTimeStep]);
 
+  // Dynamic road counts per risk category for active timestep from the 683 OSM road segments
+  const roadCounts = useMemo(() => {
+    let highRisk = 0;
+    let blocked = 0;
+    for (const road of ROAD_SEGMENTS) {
+      const state = road.timesteps[activeTimeStep];
+      const risk = state?.riskState;
+      if (risk === 'BLOCKED') {
+        blocked++;
+      } else if (risk === 'HIGH RISK') {
+        highRisk++;
+      }
+    }
+    return { highRisk, blocked };
+  }, [activeTimeStep]);
+
   return (
     <aside
       aria-label="Flood Intelligence Panel"
@@ -333,13 +349,13 @@ export const RightIntelligencePanel: React.FC = () => {
             <div className="bg-[#0d1624] p-2 rounded border border-slate-800">
               <div className="text-[10px] text-slate-400">High-Risk Roads</div>
               <div className="text-sm font-bold text-orange-400">
-                {activeTimeStep === 'NOW' ? '6' : activeTimeStep === '+1HR' ? '12' : activeTimeStep === '+2HR' ? '18' : '22'}
+                {roadCounts.highRisk}
               </div>
             </div>
             <div className="bg-[#0d1624] p-2 rounded border border-slate-800">
               <div className="text-[10px] text-slate-400">Blocked Roads</div>
               <div className="text-sm font-bold text-rose-400">
-                {activeTimeStep === 'NOW' ? '2' : activeTimeStep === '+1HR' ? '5' : activeTimeStep === '+2HR' ? '9' : '15'}
+                {roadCounts.blocked}
               </div>
             </div>
             <div className="bg-[#0d1624] p-2 rounded border border-slate-800">

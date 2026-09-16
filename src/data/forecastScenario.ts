@@ -177,5 +177,18 @@ export const SCENARIO_IMPACT_DATA: ScenarioImpactRow[] = [
     peakRisk: "High",
     keyBottleneck: "Highway culvert D-048 constriction",
     transitImpact: "Passable with caution; peripheral highway lanes clear"
+  },
+  {
+    zoneId: "FZ-09",
+    zoneName: "Khanapara Basin Representative Lowland",
+    subCatchment: "Southern Foothills Catchment",
+    elevM: 52.3,
+    simulatedDepthNow: 0.14,
+    simulatedDepthPlus1: 0.30,
+    simulatedDepthPlus2: 0.58,
+    simulatedDepthPlus3: 0.86,
+    peakRisk: "Critical",
+    keyBottleneck: "Southern foothill overland runoff funnel",
+    transitImpact: "Rotary junction surcharge; light vehicles diverted from +1 HR"
   }
 ];

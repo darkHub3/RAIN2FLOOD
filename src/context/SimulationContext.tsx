@@ -13,6 +13,7 @@ export interface ActiveLayers {
   drainageNetwork: boolean;
   historicalHotspots: boolean;
   roadNetwork: boolean;
+  naturalDrainage?: boolean;
   // Aliases for compatibility
   floodRisk?: boolean;
   floodDepth?: boolean;
@@ -84,6 +85,7 @@ export const SimulationProvider: React.FC<{ children: ReactNode }> = ({ children
     drainageNetwork: false,
     historicalHotspots: true,
     roadNetwork: true,
+    naturalDrainage: true,
     floodRisk: true,
     floodDepth: true,
     drainageStress: true,
@@ -203,7 +205,15 @@ export const SimulationProvider: React.FC<{ children: ReactNode }> = ({ children
         activeLayers,
         toggleLayer,
         mapMode,
-        setMapMode,
+        setMapMode: (mode: MapMode) => {
+          setMapMode(mode);
+          if (mode === 'flood_drainage') {
+            setActiveLayers((prev) => ({
+              ...prev,
+              drainageNetwork: true,
+            }));
+          }
+        },
         baseMapMode,
         setBaseMapMode,
         selectedNode,

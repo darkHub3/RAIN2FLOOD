@@ -151,20 +151,21 @@ export const FLOOD_ZONES: FloodZone[] = [
   },
   {
     id: "FZ-09",
-    name: "Silsako Beel - Chachhal Lowland Corridor",
-    description: "Eastern retention depression along VIP Road receiving overflow from Hengrabari ridges.",
-    center: [26.1530, 91.8150],
+    name: "Khanapara Basin Representative Lowland",
+    description: "Southern foothill catchment basin prone to rapid overland accumulation from surrounding Meghalaya hills.",
+    center: [26.1260, 91.8150],
     polygon: [
-      [26.1580, 91.8080],
-      [26.1570, 91.8220],
-      [26.1480, 91.8210],
-      [26.1490, 91.8100]
+      [26.1310, 91.8080],
+      [26.1300, 91.8220],
+      [26.1210, 91.8210],
+      [26.1220, 91.8090],
+      [26.1280, 91.8070]
     ],
     timesteps: {
-      NOW: { depthM: 0.10, risk: "low", affectedAreaHa: 5.5, primaryBottleneck: "Wetland spillway obstruction" },
-      "+1HR": { depthM: 0.26, risk: "moderate", affectedAreaHa: 12.0, primaryBottleneck: "VIP Road culvert surcharge" },
-      "+2HR": { depthM: 0.52, risk: "high", affectedAreaHa: 21.5, primaryBottleneck: "Eastern retention buffer backflow" },
-      "+3HR": { depthM: 0.78, risk: "critical", affectedAreaHa: 31.0, primaryBottleneck: "Basin inundation" }
+      NOW: { depthM: 0.14, risk: "moderate", affectedAreaHa: 6.5, primaryBottleneck: "Southern foothill overland runoff funnel" },
+      "+1HR": { depthM: 0.30, risk: "high", affectedAreaHa: 14.0, primaryBottleneck: "Culvert intake constriction on arterial link" },
+      "+2HR": { depthM: 0.58, risk: "critical", affectedAreaHa: 25.5, primaryBottleneck: "Rotary junction surcharge & backflow" },
+      "+3HR": { depthM: 0.86, risk: "critical", affectedAreaHa: 36.0, primaryBottleneck: "Basin inundation exceeding passable threshold" }
     }
   }
 ];
