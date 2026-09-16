@@ -19,7 +19,8 @@ import {
   ChevronRight,
   Route,
   Zap,
-  Radio
+  Radio,
+  Layers
 } from 'lucide-react';
 
 export const RightIntelligencePanel: React.FC = () => {
@@ -220,8 +221,8 @@ export const RightIntelligencePanel: React.FC = () => {
             <div className="flex items-center gap-1.5 flex-wrap">
               <span className="text-[10px] font-black uppercase tracking-wider text-white">
                 {khanaparaState.riskState === 'BLOCKED'
-                  ? 'KHANAPARA CROSSING: BLOCKED (IMPASSABLE)'
-                  : 'KHANAPARA CROSSING: RISK ZONE IN 48 MIN'}
+                  ? 'KHANAPARA: SIMULATED BLOCKED CONDITION'
+                  : 'KHANAPARA: PREDICTED HIGH FLOOD IMPACT'}
               </span>
             </div>
             <div className="mt-1 flex items-center gap-2">
@@ -231,14 +232,14 @@ export const RightIntelligencePanel: React.FC = () => {
                   : 'bg-amber-500/20 text-amber-300 border-amber-500/40'
               }`}>
                 {khanaparaState.riskState === 'BLOCKED'
-                  ? `Submerged (${khanaparaState.waterDepthM.toFixed(2)}m)`
-                  : `High Inundation Risk (${khanaparaState.waterDepthM.toFixed(2)}m)`}
+                  ? `Simulated Depth: ${khanaparaState.waterDepthM.toFixed(2)}m`
+                  : `High Overland Runoff (${khanaparaState.waterDepthM.toFixed(2)}m)`}
               </span>
             </div>
             <p className="mt-1.5 text-[10px] text-rose-200/90 font-medium">
               {khanaparaState.riskState === 'BLOCKED'
-                ? 'Corridor closure recommended. Divert traffic to higher elevation routes.'
-                : 'Overland flow accumulating rapidly. Take lower-exposure route.'}
+                ? 'Predicted flood depth exceeds prototype road-impact threshold.'
+                : 'Overland runoff accumulating rapidly from adjacent southern slopes.'}
             </p>
           </div>
         </div>
@@ -305,108 +306,64 @@ export const RightIntelligencePanel: React.FC = () => {
         </div>
       </section>
 
-      {/* 4. LOWER-EXPOSURE ROUTE OPTIONS */}
+      {/* 4. SCENARIO KPIs & INFRASTRUCTURE COUPLING */}
       <section className="space-y-1.5">
         <div className="flex items-center justify-between border-b border-[#1e293b] pb-1">
           <div className="flex items-center gap-1.5">
-            <Route className="w-3.5 h-3.5 text-emerald-400" />
+            <Layers className="w-3.5 h-3.5 text-cyan-400" />
             <h3 className="text-[11px] font-bold text-white tracking-tight uppercase">
-              Lower-Exposure Route Options
+              Scenario KPIs
             </h3>
           </div>
-          <button
-            onClick={() => setActiveTab('route')}
-            className="text-[9px] text-cyan-400 hover:text-cyan-300 flex items-center gap-0.5 transition-colors"
-          >
-            <span>Full Routing</span>
-            <ChevronRight className="w-2.5 h-2.5" />
-          </button>
+          <span className="text-[9px] text-amber-300 font-mono font-semibold">Simulated Scenario</span>
         </div>
 
-        <div className="space-y-1.5">
-          {/* 1. Emergency Services */}
-          <div
-            onClick={() => {
-              setTargetLocation({ lat: 26.1380, lng: 91.7950, zoom: 14, name: 'NH 17 Corridor' });
-            }}
-            className="p-2 rounded-lg bg-[#090e18]/90 border border-emerald-500/30 hover:border-emerald-400/60 cursor-pointer transition-all hover:bg-emerald-950/20 group"
-          >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-1.5">
-                <div className="p-1 rounded bg-emerald-500/20 text-emerald-400">
-                  <Siren className="w-3 h-3" />
-                </div>
-                <span className="font-bold text-white text-[11px] group-hover:text-emerald-300 transition-colors">
-                  Emergency Services
-                </span>
+        <div className="bg-[#090e18]/90 rounded-lg p-2.5 border border-[#1e293b] space-y-2">
+          <div className="grid grid-cols-2 gap-2 text-xs font-mono">
+            <div className="bg-[#0d1624] p-2 rounded border border-slate-800">
+              <div className="text-[10px] text-slate-400">Rainfall</div>
+              <div className="text-sm font-bold text-cyan-400">
+                {activeTimeStep === 'NOW' ? '45' : activeTimeStep === '+1HR' ? '68' : activeTimeStep === '+2HR' ? '82' : '95'} mm/hr
               </div>
-              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
-                LOWER EXPOSURE
-              </span>
             </div>
-            <div className="mt-1 flex items-center justify-between text-[10px] text-slate-300">
-              <span className="font-mono">via NH 17 (Ridge)</span>
-              <span className="font-mono text-emerald-400 font-semibold">+8 min transit</span>
+            <div className="bg-[#0d1624] p-2 rounded border border-slate-800">
+              <div className="text-[10px] text-slate-400">Flood Hotspots</div>
+              <div className="text-sm font-bold text-amber-400">9 Active</div>
+            </div>
+            <div className="bg-[#0d1624] p-2 rounded border border-slate-800">
+              <div className="text-[10px] text-slate-400">High-Risk Roads</div>
+              <div className="text-sm font-bold text-orange-400">
+                {activeTimeStep === 'NOW' ? '6' : activeTimeStep === '+1HR' ? '12' : activeTimeStep === '+2HR' ? '18' : '22'}
+              </div>
+            </div>
+            <div className="bg-[#0d1624] p-2 rounded border border-slate-800">
+              <div className="text-[10px] text-slate-400">Blocked Roads</div>
+              <div className="text-sm font-bold text-rose-400">
+                {activeTimeStep === 'NOW' ? '2' : activeTimeStep === '+1HR' ? '5' : activeTimeStep === '+2HR' ? '9' : '15'}
+              </div>
+            </div>
+            <div className="bg-[#0d1624] p-2 rounded border border-slate-800">
+              <div className="text-[10px] text-slate-400">Drainage Stress</div>
+              <div className="text-sm font-bold text-purple-400">
+                {activeTimeStep === 'NOW' ? '73%' : activeTimeStep === '+1HR' ? '87%' : activeTimeStep === '+2HR' ? '94%' : '98%'}
+              </div>
+            </div>
+            <div className="bg-[#0d1624] p-2 rounded border border-slate-800">
+              <div className="text-[10px] text-slate-400">Affected Area</div>
+              <div className="text-sm font-bold text-blue-400">19.4 km²</div>
             </div>
           </div>
 
-          {/* 2. Commuters */}
-          <div
-            onClick={() => {
-              setTargetLocation({ lat: 26.1550, lng: 91.7760, zoom: 14, name: 'Zoo Rd Corridor' });
-            }}
-            className="p-2 rounded-lg bg-[#090e18]/90 border border-cyan-500/30 hover:border-cyan-400/60 cursor-pointer transition-all hover:bg-cyan-950/20 group"
-          >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-1.5">
-                <div className="p-1 rounded bg-cyan-500/20 text-cyan-400">
-                  <Car className="w-3 h-3" />
-                </div>
-                <span className="font-bold text-white text-[11px] group-hover:text-cyan-300 transition-colors">
-                  Commuter Detour
-                </span>
-              </div>
-              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/40">
-                RECOMMENDED
-              </span>
-            </div>
-            <div className="mt-1 flex items-center justify-between text-[10px] text-slate-300">
-              <span className="font-mono truncate pr-1">Zoo Rd → GS Rd → Dispur</span>
-              <span className="font-mono text-cyan-400 font-semibold shrink-0">+12 min transit</span>
-            </div>
-          </div>
-
-          {/* 3. Traffic Authorities */}
-          <div
-            onClick={() => {
-              setTargetLocation({ lat: 26.1265, lng: 91.8080, zoom: 15, name: 'Khanapara Diversion' });
-            }}
-            className="p-2 rounded-lg bg-[#090e18]/90 border border-rose-500/30 hover:border-rose-400/60 cursor-pointer transition-all hover:bg-rose-950/20 group"
-          >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-1.5">
-                <div className="p-1 rounded bg-rose-500/20 text-rose-400">
-                  <Navigation className="w-3 h-3" />
-                </div>
-                <span className="font-bold text-white text-[11px] group-hover:text-rose-300 transition-colors">
-                  Traffic Diversion Advisory
-                </span>
-              </div>
-              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-300 border border-rose-500/40">
-                DIVERT TRAFFIC
-              </span>
-            </div>
-            <div className="mt-1 text-[10px] text-slate-300 font-mono">
-              Divert traffic from Khanapara junction
-            </div>
-          </div>
+          <p className="text-[9px] text-slate-400 text-center font-mono">
+            All values are simulated for the prototype.
+          </p>
         </div>
 
         <button
-          onClick={() => setActiveTab('route')}
+          onClick={() => setActiveTab('roadrisk')}
           className="w-full mt-1 py-1.5 px-2 rounded-lg bg-[#142033] hover:bg-cyan-950 text-cyan-300 hover:text-cyan-200 border border-cyan-800/60 text-[10px] transition-all flex items-center justify-center gap-1.5 font-bold shadow"
         >
-          <span>Open Road Risk & Routing View</span>
+          <span>Open Road Risk & Impact Analysis</span>
           <ArrowRight className="w-3 h-3" />
         </button>
       </section>

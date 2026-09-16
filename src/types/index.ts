@@ -1,5 +1,9 @@
 export type TimeStep = 'NOW' | '+1HR' | '+2HR' | '+3HR';
 
+export type MapMode = 'flood_drainage' | 'road_risk';
+
+export type NavigationTab = 'dashboard' | 'drainage' | 'forecast' | 'roadrisk' | 'howitworks' | 'route';
+
 export type DrainageNodeType = 'inlet' | 'manhole' | 'junction' | 'outfall' | 'pump_station';
 export type DrainageNodeStatus = 'normal' | 'warning' | 'surcharged' | 'critical';
 export type DrainageEdgeStatus = 'normal' | 'warning' | 'overloaded' | 'critical';
@@ -75,6 +79,9 @@ export interface RoadTimestepState {
 export interface RoadSegment {
   id: string;
   name: string;
+  roadName?: string;
+  from?: string; // R-* intersection node
+  to?: string;   // R-* intersection node
   path: [number, number][];
   timesteps: Record<TimeStep, RoadTimestepState>;
   description?: string;
@@ -84,6 +91,7 @@ export interface NaturalWaterway {
   id: string;
   name: string;
   type: 'river' | 'channel' | 'wetland' | 'lake';
+  category?: 'natural' | 'man_made';
   path?: [number, number][];
   polygon?: [number, number][];
   capacityRole: string;
@@ -130,3 +138,22 @@ export interface RainfallTimestepData {
   highRiskZonesCount: number;
   statusSummary: string;
 }
+
+export interface HotspotInspectorData {
+  location: string;
+  simulatedDepthM: number;
+  severity: FloodRisk;
+  drainageStressPct: number;
+  scenarioTime: TimeStep;
+  affectedRoadsCount: number;
+}
+
+export interface BlockedRoadInspectorData {
+  roadName: string;
+  status: 'BLOCKED' | 'SIMULATED BLOCKED CONDITION';
+  simulatedDepthM: number;
+  drainageStressPct: number;
+  scenarioTime: TimeStep;
+  reason: string;
+}
+

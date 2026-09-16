@@ -1,11 +1,10 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { TimeStep, DrainageNode, DrainageEdge, RoadSegment } from '../types';
+import { TimeStep, DrainageNode, DrainageEdge, RoadSegment, MapMode, NavigationTab } from '../types';
 import { DRAINAGE_NODES } from '../data/drainageNodes';
 import { DRAINAGE_EDGES } from '../data/drainageEdges';
 import { ROAD_SEGMENTS } from '../data/roads';
 
-export type NavigationTab = 'dashboard' | 'drainage' | 'forecast' | 'route' | 'howitworks';
-export type { TimeStep } from '../types';
+export type { TimeStep, MapMode, NavigationTab } from '../types';
 
 export interface ActiveLayers {
   rainfallNowcast: boolean;
@@ -33,6 +32,8 @@ interface SimulationContextType {
   stepForward: () => void;
   activeLayers: ActiveLayers;
   toggleLayer: (layer: keyof ActiveLayers) => void;
+  mapMode: MapMode;
+  setMapMode: (mode: MapMode) => void;
   baseMapMode: 'satellite' | 'osm' | 'dark';
   setBaseMapMode: (mode: 'satellite' | 'osm' | 'dark') => void;
   selectedNode: DrainageNode | null;
@@ -71,6 +72,7 @@ export const SimulationProvider: React.FC<{ children: ReactNode }> = ({ children
   const [activeTab, setActiveTab] = useState<NavigationTab>('dashboard');
   const [selectedRouteId, setSelectedRouteId] = useState<string>('route-01');
   const [isDisclaimerOpen, setIsDisclaimerOpen] = useState<boolean>(false);
+  const [mapMode, setMapMode] = useState<MapMode>('road_risk');
   const [baseMapMode, setBaseMapMode] = useState<'satellite' | 'osm' | 'dark'>('satellite');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [targetLocation, setTargetLocation] = useState<{ lat: number; lng: number; name: string; zoom?: number } | null>(null);
@@ -197,6 +199,8 @@ export const SimulationProvider: React.FC<{ children: ReactNode }> = ({ children
         stepForward,
         activeLayers,
         toggleLayer,
+        mapMode,
+        setMapMode,
         baseMapMode,
         setBaseMapMode,
         selectedNode,

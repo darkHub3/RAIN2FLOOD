@@ -113,7 +113,7 @@ export const LeftSidebar: React.FC = () => {
           <div className="flex items-center gap-2">
             <Layers className="w-4 h-4 text-cyan-400" />
             <span className="font-bold text-white text-[13px] tracking-wide">
-              Layers
+              ROAD RISK & FLOOD STATUS
             </span>
           </div>
         </div>
@@ -486,8 +486,8 @@ export const LeftSidebar: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-2">
-            <span className="w-4 h-1 bg-cyan-400 rounded inline-block shadow-sm"></span>
-            <span className="text-slate-300">Lower-Exposure Route</span>
+            <span className="w-4 h-1 bg-[#00d2ff] rounded inline-block shadow-sm"></span>
+            <span className="text-slate-300">Natural Drainage Channel</span>
           </div>
         </div>
       </div>

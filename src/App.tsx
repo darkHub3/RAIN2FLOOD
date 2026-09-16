@@ -21,7 +21,7 @@ const MainContent: React.FC = () => {
         {activeTab === 'dashboard' && <DashboardView />}
         {activeTab === 'drainage' && <DrainageNetworkView />}
         {activeTab === 'forecast' && <ScenarioForecastView />}
-        {activeTab === 'route' && <SafeRouteView />}
+        {(activeTab === 'roadrisk' || activeTab === 'route') && <SafeRouteView />}
         {activeTab === 'howitworks' && <HowItWorksView />}
       </main>
 

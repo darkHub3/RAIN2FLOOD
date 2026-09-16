@@ -89,5 +89,49 @@ export const NATURAL_WATERWAYS: NaturalWaterway[] = [
     ],
     capacityRole: "Southern foothill stream feeding into Mora Bharalu canal.",
     notes: "Carries high-velocity monsoon runoff from Meghalaya border ridges."
+  },
+  {
+    id: "NW-07",
+    name: "Bahini Natural Urban Stream",
+    type: "channel",
+    category: "natural",
+    path: [
+      [26.1150, 91.8020],
+      [26.1250, 91.7990],
+      [26.1340, 91.7940],
+      [26.1410, 91.7880],
+      [26.1480, 91.7820]
+    ],
+    capacityRole: "Upper tributary feeding storm runoff from southern foothills into the Bharalu urban channel system.",
+    notes: "Critical upstream conveyor responsible for backwater surge along Rukminigaon and Beltola Road."
+  },
+  {
+    id: "NW-08",
+    name: "Lakhimijan Natural Channel",
+    type: "channel",
+    category: "natural",
+    path: [
+      [26.1720, 91.8120],
+      [26.1800, 91.8220],
+      [26.1880, 91.8300],
+      [26.1940, 91.8340]
+    ],
+    capacityRole: "Northeast conveyance channel receiving overflow runoff from Noonmati and Eastern refinery foothills.",
+    notes: "Natural arterial channel draining eastern catchments toward the Brahmaputra."
+  },
+  {
+    id: "NW-09",
+    name: "Bondajan Natural Channel & Basin",
+    type: "channel",
+    category: "natural",
+    path: [
+      [26.1650, 91.8310],
+      [26.1760, 91.8360],
+      [26.1870, 91.8390],
+      [26.1960, 91.8420]
+    ],
+    capacityRole: "Eastern primary natural outfall channel draining Silsako overflow and Narengi basin storm discharge.",
+    notes: "Major eastern drainage relief channel discharging into the Brahmaputra floodplain."
   }
 ];
+

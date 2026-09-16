@@ -6,9 +6,8 @@ import { FLOOD_ZONES } from '../../data/floodZones';
 import { NATURAL_WATERWAYS } from '../../data/naturalDrainage';
 import { TERRAIN_HILLS, FLOW_ACCUMULATION_VECTORS } from '../../data/terrainData';
 import { ROAD_SEGMENTS } from '../../data/roads';
-import { ROUTE_SCENARIOS } from '../../data/routes';
 import { DrainageNode, DrainageEdge, RoadRiskState, RoadSegment } from '../../types';
-import { ZoomIn, ZoomOut, RotateCcw, Crosshair, Layers } from 'lucide-react';
+import { ZoomIn, ZoomOut, RotateCcw, Crosshair, Layers, Waves, ShieldAlert, AlertTriangle, Clock } from 'lucide-react';
 
 // Guwahati Bounding Box
 const LNG_MIN = 91.665;
@@ -40,7 +39,7 @@ interface SvgMapProps {
   showRoutes?: boolean;
 }
 
-export const FallbackSvgMap: React.FC<SvgMapProps> = ({ showRoutes = false }) => {
+export const FallbackSvgMap: React.FC<SvgMapProps> = () => {
   const {
     activeTimeStep,
     activeLayers,
@@ -49,10 +48,14 @@ export const FallbackSvgMap: React.FC<SvgMapProps> = ({ showRoutes = false }) =>
     selectedEdge,
     setSelectedEdge,
     selectedRoad,
+    setSelectedRoad,
     focusRoad,
     roadRiskFilter,
-    selectedRouteId,
     baseMapMode,
+    mapMode,
+    setMapMode,
+    selectedHotspotId,
+    setSelectedHotspotId,
   } = useSimulation();
 
   const [zoom, setZoom] = useState<number>(1);
@@ -60,16 +63,16 @@ export const FallbackSvgMap: React.FC<SvgMapProps> = ({ showRoutes = false }) =>
   const [hoveredInfo, setHoveredInfo] = useState<string | null>(null);
   const [isLayersCollapsed, setIsLayersCollapsed] = useState(false);
 
-  // In-Map Layer Control state (Drainage Network default: unchecked/off)
   const [mapLayers, setMapLayers] = useState({
     roadRisk: true,
     drainageNetwork: false,
+    naturalDrainage: true,
     floodExtent: true,
     hotspots: true,
-    routes: true,
   });
 
-  const activeRoute = ROUTE_SCENARIOS.find((r) => r.id === selectedRouteId) || ROUTE_SCENARIOS[0];
+  const isFloodDrainageMode = mapMode === 'flood_drainage';
+  const isRoadRiskMode = mapMode === 'road_risk';
 
   const handleZoomIn = () => setZoom((z) => Math.min(z + 0.25, 2.5));
   const handleZoomOut = () => setZoom((z) => Math.max(z - 0.25, 0.75));
@@ -87,872 +90,364 @@ export const FallbackSvgMap: React.FC<SvgMapProps> = ({ showRoutes = false }) =>
     });
   };
 
-  // Status colors
-  const getEdgeColor = (status: string) => {
-    switch (status) {
-      case 'critical': return '#ef4444';
-      case 'overloaded': return '#f97316';
-      case 'warning': return '#f59e0b';
-      default: return '#06b6d4';
-    }
-  };
-
-  const getNodeColor = (status: string) => {
-    switch (status) {
-      case 'critical': return '#dc2626';
-      case 'surcharged': return '#ef4444';
-      case 'warning': return '#f59e0b';
-      default: return '#10b981';
-    }
-  };
-
-  const getFloodColor = (depth: number) => {
-    if (depth > 0.6) return 'rgba(239, 68, 68, 0.22)';
-    if (depth > 0.3) return 'rgba(249, 115, 22, 0.20)';
-    if (depth > 0.15) return 'rgba(234, 179, 8, 0.18)';
-    return 'rgba(6, 182, 212, 0.16)';
-  };
-
-  const getFloodStroke = (depth: number) => {
-    if (depth > 0.6) return 'rgba(239, 68, 68, 0.55)';
-    if (depth > 0.3) return 'rgba(249, 115, 22, 0.50)';
-    if (depth > 0.15) return 'rgba(234, 179, 8, 0.45)';
-    return 'rgba(6, 182, 212, 0.40)';
-  };
-
-  const getRoadRiskColor = (risk: RoadRiskState) => {
-    switch (risk) {
-      case 'BLOCKED': return '#ef4444';
-      case 'HIGH RISK': return '#f97316';
-      case 'MODERATE': return '#eab308';
-      case 'NORMAL':
-      default:
-        return '#10b981';
-    }
-  };
+  const activeHotspot = FLOOD_ZONES.find((z) => z.id === selectedHotspotId) || null;
 
   return (
-    <div className="relative w-full h-full min-h-[500px] lg:min-h-[620px] bg-[#090e18] rounded-xl overflow-hidden border border-[#223554] shadow-2xl select-none">
-      {/* Map Header Status Overlay */}
-      <div className="absolute top-3 left-3 z-20 flex flex-wrap items-center gap-2 pointer-events-auto">
-        <div className="bg-[#0f172a]/90 backdrop-blur-md px-3 py-1.5 rounded-lg border border-[#223554] text-xs font-mono flex items-center gap-2 text-slate-300 shadow-md">
-          <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span>
-          <span className="font-bold text-white uppercase">Guwahati Pilot GIS</span>
-          <span className="text-slate-500">|</span>
-          <span className="text-cyan-300 font-semibold">{activeTimeStep} Scenario</span>
-        </div>
-
-        {/* Quick Zoom Hotspots */}
-        <div className="hidden sm:flex items-center gap-1 bg-[#0f172a]/90 backdrop-blur-md p-1 rounded-lg border border-[#223554] text-[10px] font-mono">
-          <span className="text-slate-400 px-1">Hotspots:</span>
+    <div className="relative w-full h-full min-h-[400px] sm:min-h-[500px] lg:min-h-[640px] flex flex-col bg-[#070c14] border border-[#162236] rounded-xl overflow-hidden select-none shadow-2xl">
+      {/* 1. TOP-CENTER MODE SWITCHER */}
+      <div className="absolute top-2.5 sm:top-4 left-1/2 -translate-x-1/2 z-[30] pointer-events-auto">
+        <div className="bg-[#0b1322]/95 backdrop-blur-md border border-[#1e2f49] p-1 rounded-xl shadow-2xl flex items-center gap-1 font-mono text-xs">
           <button
-            onClick={() => centerOnCoord(26.1755, 91.7725)}
-            className="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-cyan-300 transition-colors"
+            onClick={() => setMapMode('flood_drainage')}
+            className={`px-3 py-1.5 rounded-lg font-bold transition-all flex items-center gap-1.5 ${
+              isFloodDrainageMode
+                ? 'bg-cyan-500 text-slate-950 shadow-md shadow-cyan-500/20'
+                : 'text-slate-400 hover:text-white hover:bg-[#152338]'
+            }`}
           >
-            Anil Nagar
+            <Waves className="w-3.5 h-3.5" />
+            <span>FLOOD & DRAINAGE</span>
           </button>
           <button
-            onClick={() => centerOnCoord(26.1585, 91.7685)}
-            className="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-cyan-300 transition-colors"
+            onClick={() => setMapMode('road_risk')}
+            className={`px-3 py-1.5 rounded-lg font-bold transition-all flex items-center gap-1.5 ${
+              isRoadRiskMode
+                ? 'bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/20'
+                : 'text-slate-400 hover:text-white hover:bg-[#152338]'
+            }`}
           >
-            Bhangagarh
-          </button>
-          <button
-            onClick={() => centerOnCoord(26.1758, 91.7285)}
-            className="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-cyan-300 transition-colors"
-          >
-            Bharalumukh
-          </button>
-          <button
-            onClick={() => centerOnCoord(26.1280, 91.6780)}
-            className="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-cyan-300 transition-colors"
-          >
-            Deepor Beel
+            <ShieldAlert className="w-3.5 h-3.5" />
+            <span>ROAD RISK</span>
           </button>
         </div>
       </div>
 
-      {/* Floating In-Map Layer Control Widget */}
-      <div className="absolute top-12 left-3 z-20 pointer-events-auto">
-        {isLayersCollapsed ? (
-          <button
-            onClick={() => setIsLayersCollapsed(false)}
-            className="bg-[#0f172a]/90 backdrop-blur-md border border-[#223554] hover:border-cyan-500/50 rounded-lg px-2.5 py-1 shadow-lg flex items-center gap-1.5 text-xs text-slate-200 transition-all font-mono"
-            title="Open Map Layers Control"
-          >
-            <Layers className="w-3.5 h-3.5 text-cyan-400" />
-            <span className="font-semibold text-white text-[11px]">Layers</span>
-          </button>
-        ) : (
-          <div className="bg-[#0f172a]/95 backdrop-blur-md border border-[#223554] rounded-lg p-2.5 shadow-2xl flex flex-col gap-1.5 w-44 text-xs select-none font-mono">
-            <div className="flex items-center justify-between border-b border-slate-700/60 pb-1 text-[10px] text-cyan-400 font-bold uppercase tracking-wider">
-              <div className="flex items-center gap-1.5">
-                <Layers className="w-3.5 h-3.5 text-cyan-400" />
-                <span>MAP LAYERS</span>
-              </div>
-              <button
-                onClick={() => setIsLayersCollapsed(true)}
-                className="text-slate-400 hover:text-white p-0.5 text-xs leading-none"
-                title="Collapse Layers"
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="space-y-1.5 pt-0.5 text-[11px] font-medium text-slate-200">
-              <label className="flex items-center gap-2 cursor-pointer hover:text-white">
-                <input
-                  type="checkbox"
-                  checked={mapLayers.roadRisk}
-                  onChange={(e) => setMapLayers((prev) => ({ ...prev, roadRisk: e.target.checked }))}
-                  className="rounded border-slate-700 bg-slate-900 text-emerald-500 focus:ring-0 focus:ring-offset-0 w-3.5 h-3.5 cursor-pointer accent-emerald-500"
-                />
-                <span className="flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
-                  Road Risk
-                </span>
-              </label>
-
-              <label className="flex items-center gap-2 cursor-pointer hover:text-white">
-                <input
-                  type="checkbox"
-                  checked={mapLayers.drainageNetwork}
-                  onChange={(e) => setMapLayers((prev) => ({ ...prev, drainageNetwork: e.target.checked }))}
-                  className="rounded border-slate-700 bg-slate-900 text-cyan-500 focus:ring-0 focus:ring-offset-0 w-3.5 h-3.5 cursor-pointer accent-cyan-500"
-                />
-                <span className="flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-cyan-400"></span>
-                  Drainage Network
-                </span>
-              </label>
-
-              <label className="flex items-center gap-2 cursor-pointer hover:text-white">
-                <input
-                  type="checkbox"
-                  checked={mapLayers.floodExtent}
-                  onChange={(e) => setMapLayers((prev) => ({ ...prev, floodExtent: e.target.checked }))}
-                  className="rounded border-slate-700 bg-slate-900 text-blue-500 focus:ring-0 focus:ring-offset-0 w-3.5 h-3.5 cursor-pointer accent-blue-500"
-                />
-                <span className="flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-blue-400"></span>
-                  Flood Extent
-                </span>
-              </label>
-
-              <label className="flex items-center gap-2 cursor-pointer hover:text-white">
-                <input
-                  type="checkbox"
-                  checked={mapLayers.hotspots}
-                  onChange={(e) => setMapLayers((prev) => ({ ...prev, hotspots: e.target.checked }))}
-                  className="rounded border-slate-700 bg-slate-900 text-amber-500 focus:ring-0 focus:ring-offset-0 w-3.5 h-3.5 cursor-pointer accent-amber-500"
-                />
-                <span className="flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-amber-400"></span>
-                  Hotspots
-                </span>
-              </label>
-
-              <label className="flex items-center gap-2 cursor-pointer hover:text-white">
-                <input
-                  type="checkbox"
-                  checked={mapLayers.routes}
-                  onChange={(e) => setMapLayers((prev) => ({ ...prev, routes: e.target.checked }))}
-                  className="rounded border-slate-700 bg-slate-900 text-teal-500 focus:ring-0 focus:ring-offset-0 w-3.5 h-3.5 cursor-pointer accent-teal-500"
-                />
-                <span className="flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-teal-400"></span>
-                  Routes
-                </span>
-              </label>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Floating Map Navigation Controls */}
-      <div className="absolute top-3 right-3 z-20 flex flex-col gap-1.5 bg-[#0f172a]/90 backdrop-blur-md p-1 rounded-lg border border-[#223554] shadow-md">
+      {/* 2. FLOATING CONTROLS (TOP-RIGHT) */}
+      <div className="absolute top-3 right-3 z-30 flex items-center gap-1 bg-[#0b1322]/90 backdrop-blur-md border border-[#1e2f49] rounded-lg p-1 shadow-lg">
         <button
           onClick={handleZoomIn}
-          className="p-2 rounded hover:bg-slate-800 text-slate-300 hover:text-cyan-300 transition-colors"
+          className="p-1.5 rounded hover:bg-cyan-950 text-slate-300 hover:text-cyan-300 transition-colors"
           title="Zoom In"
         >
           <ZoomIn className="w-4 h-4" />
         </button>
         <button
           onClick={handleZoomOut}
-          className="p-2 rounded hover:bg-slate-800 text-slate-300 hover:text-cyan-300 transition-colors"
+          className="p-1.5 rounded hover:bg-cyan-950 text-slate-300 hover:text-cyan-300 transition-colors"
           title="Zoom Out"
         >
           <ZoomOut className="w-4 h-4" />
         </button>
         <button
           onClick={handleReset}
-          className="p-2 rounded hover:bg-slate-800 text-slate-300 hover:text-cyan-300 transition-colors"
-          title="Reset Map View"
+          className="p-1.5 rounded hover:bg-cyan-950 text-slate-300 hover:text-cyan-300 transition-colors"
+          title="Reset View"
         >
           <RotateCcw className="w-4 h-4" />
         </button>
       </div>
 
-      {/* Hover Info Tooltip */}
-      {hoveredInfo && (
-        <div className="absolute bottom-4 left-4 z-20 bg-[#0f172a]/95 border border-cyan-500/50 text-cyan-200 px-3 py-1.5 rounded-md text-xs font-mono shadow-xl max-w-md pointer-events-none">
-          {hoveredInfo}
+      {/* 3. FLOATING INSPECTOR CARD (SECTION 15 & 7) */}
+      {selectedRoad ? (
+        <div className="absolute top-16 left-3 z-30 max-w-[280px] bg-[#0b1322]/95 backdrop-blur-md border border-red-500/60 rounded-xl p-3 shadow-2xl text-xs space-y-2">
+          {(() => {
+            const rState = selectedRoad.timesteps[activeTimeStep];
+            const isBlocked = rState.riskState === 'BLOCKED';
+            return (
+              <>
+                <div className="flex items-center justify-between border-b border-slate-700 pb-1">
+                  <span className="font-mono text-[10px] text-cyan-400 font-bold uppercase">ROAD IMPACT</span>
+                  <button onClick={() => setSelectedRoad(null)} className="text-slate-400 hover:text-white">✕</button>
+                </div>
+                <div className="space-y-1 font-mono text-[11px] text-slate-300">
+                  <div className="font-bold text-white text-xs">{selectedRoad.name}</div>
+                  <div>Status: <span className="text-red-400 font-bold">{isBlocked ? 'SIMULATED BLOCKED CONDITION' : rState.riskState}</span></div>
+                  <div>Simulated Depth: <span className="text-cyan-300">{rState.waterDepthM.toFixed(2)} m</span></div>
+                  <div>Drainage Stress: <span className="text-white">{rState.drainageStressPct || 85}%</span></div>
+                  <div>Scenario: <span className="text-amber-300 font-bold">{activeTimeStep}</span></div>
+                  <div className="text-[10px] text-slate-400 pt-1 border-t border-slate-800">
+                    Reason: <span className="text-rose-300">{isBlocked ? 'Predicted flood depth exceeds prototype road-impact threshold.' : 'Overland runoff within operational limits.'}</span>
+                  </div>
+                </div>
+              </>
+            );
+          })()}
         </div>
-      )}
+      ) : activeHotspot ? (
+        <div className="absolute top-16 left-3 z-30 max-w-[280px] bg-[#0b1322]/95 backdrop-blur-md border border-amber-500/60 rounded-xl p-3 shadow-2xl text-xs space-y-2">
+          <div className="flex items-center justify-between border-b border-slate-700 pb-1">
+            <span className="font-mono text-[10px] text-amber-400 font-bold uppercase">FLOOD HOTSPOT</span>
+            <button onClick={() => setSelectedHotspotId(null)} className="text-slate-400 hover:text-white">✕</button>
+          </div>
+          <div className="space-y-1 font-mono text-[11px] text-slate-300">
+            <div className="font-bold text-white text-xs">{activeHotspot.name}</div>
+            <div>Severity: <span className="text-amber-400 font-bold uppercase">{activeHotspot.timesteps[activeTimeStep].risk}</span></div>
+            <div>Simulated Depth: <span className="text-cyan-300">{activeHotspot.timesteps[activeTimeStep].depthM.toFixed(2)} m</span></div>
+            <div>Drainage Stress: <span className="text-rose-400 font-bold">87%</span></div>
+            <div>Scenario: <span className="text-cyan-400 font-bold">{activeTimeStep}</span></div>
+            <div>Affected Roads: <span className="text-white font-bold">4 corridors</span></div>
+          </div>
+        </div>
+      ) : null}
 
-      {/* Main SVG Vector Canvas */}
+      {/* 4. MAIN SVG CANVAS */}
       <svg
+        className="w-full h-full cursor-grab active:cursor-grabbing flex-1"
         viewBox={`0 0 ${SVG_WIDTH} ${SVG_HEIGHT}`}
-        className="w-full h-full cursor-grab active:cursor-grabbing"
         style={{
           transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
           transformOrigin: 'center center',
-          transition: 'transform 0.25s ease-out',
+          transition: 'transform 0.15s ease-out',
         }}
       >
         <defs>
-          {/* Subtle Grid Pattern for GIS Coordinate Graticule */}
-          <pattern id="gisGrid" width="50" height="50" patternUnits="userSpaceOnUse">
-            <path d="M 50 0 L 0 0 0 50" fill="none" stroke="#141f33" strokeWidth="0.75" />
-          </pattern>
-
-          {/* Flow vector arrow marker */}
-          <marker
-            id="flowArrow"
-            viewBox="0 0 10 10"
-            refX="6"
-            refY="5"
-            markerWidth="4"
-            markerHeight="4"
-            orient="auto-start-reverse"
-          >
-            <path d="M 0 1 L 8 5 L 0 9 z" fill="#f59e0b" opacity="0.8" />
-          </marker>
-
-          {/* Blue gradient for Brahmaputra River */}
-          <linearGradient id="riverGradient" x1="0%" y1="0%" x2="100%" y2="50%">
-            <stop offset="0%" stopColor="#03254c" stopOpacity="0.85" />
-            <stop offset="50%" stopColor="#043a6b" stopOpacity="0.9" />
-            <stop offset="100%" stopColor="#021c3b" stopOpacity="0.85" />
-          </linearGradient>
-
-          {/* Wetland pattern */}
-          <pattern id="wetlandPattern" width="12" height="12" patternUnits="userSpaceOnUse">
-            <path d="M 2,8 Q 6,4 10,8" fill="none" stroke="#38bdf8" strokeWidth="0.8" opacity="0.4" />
+          <pattern id="svgGrid" width="40" height="40" patternUnits="userSpaceOnUse">
+            <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#121d30" strokeWidth="0.8" />
           </pattern>
         </defs>
 
-        {/* Base GIS Graticule Grid / Satellite Background */}
-        <rect width={SVG_WIDTH} height={SVG_HEIGHT} fill={baseMapMode === 'satellite' ? '#070f1a' : '#090e18'} />
-        {baseMapMode === 'satellite' ? (
-          <>
-            {/* Satellite aerial terrain texture approximation */}
-            <radialGradient id="satGlow" cx="45%" cy="55%" r="65%">
-              <stop offset="0%" stopColor="#0d1f33" stopOpacity="0.8" />
-              <stop offset="60%" stopColor="#071322" stopOpacity="0.9" />
-              <stop offset="100%" stopColor="#040912" stopOpacity="1" />
-            </radialGradient>
-            <rect width={SVG_WIDTH} height={SVG_HEIGHT} fill="url(#satGlow)" />
-            <path
-              d="M 120,480 Q 250,560 520,530 T 920,490 L 1000,650 L 0,650 Z"
-              fill="#081524"
-              opacity="0.6"
+        {/* Dark Terrain Grid */}
+        <rect width={SVG_WIDTH} height={SVG_HEIGHT} fill="#090e18" />
+        <rect width={SVG_WIDTH} height={SVG_HEIGHT} fill="url(#svgGrid)" opacity="0.6" />
+
+        {/* Natural Waterways: Wetlands & Basins */}
+        {NATURAL_WATERWAYS.map((nw) => {
+          if (nw.polygon) {
+            const pointsStr = nw.polygon
+              .map((c) => {
+                const [x, y] = projectCoords(c[0], c[1]);
+                return `${x},${y}`;
+              })
+              .join(' ');
+            return (
+              <polygon
+                key={nw.id}
+                points={pointsStr}
+                fill="#0284c7"
+                fillOpacity={isFloodDrainageMode ? 0.45 : 0.25}
+                stroke="#38bdf8"
+                strokeWidth={isFloodDrainageMode ? 2.5 : 1.5}
+              />
+            );
+          }
+          return null;
+        })}
+
+        {/* Natural Channels (Blue/Cyan) */}
+        {NATURAL_WATERWAYS.map((nw) => {
+          if (nw.path) {
+            const pointsStr = nw.path
+              .map((c) => {
+                const [x, y] = projectCoords(c[0], c[1]);
+                return `${x},${y}`;
+              })
+              .join(' ');
+            return (
+              <polyline
+                key={nw.id}
+                points={pointsStr}
+                fill="none"
+                stroke="#00d2ff"
+                strokeWidth={isFloodDrainageMode ? 5.0 : 2.5}
+                strokeOpacity={isFloodDrainageMode ? 0.95 : 0.6}
+                strokeLinecap="round"
+              />
+            );
+          }
+          return null;
+        })}
+
+        {/* Representative Man-Made Drainage Conduits (Purple/Orange) */}
+        {(isFloodDrainageMode || mapLayers.drainageNetwork) &&
+          DRAINAGE_EDGES.map((edge) => {
+            const from = DRAINAGE_NODES.find((n) => n.id === edge.fromNode);
+            const to = DRAINAGE_NODES.find((n) => n.id === edge.toNode);
+            if (!from || !to) return null;
+            const [x1, y1] = projectCoords(from.lat, from.lng);
+            const [x2, y2] = projectCoords(to.lat, to.lng);
+            const state = edge.timesteps[activeTimeStep];
+            const isOverloaded = state.flowM3s > edge.designCapacityM3s;
+            const strokeColor = isOverloaded ? '#f97316' : '#a855f7';
+            return (
+              <line
+                key={edge.id}
+                x1={x1}
+                y1={y1}
+                x2={x2}
+                y2={y2}
+                stroke={strokeColor}
+                strokeWidth={isOverloaded ? 3.5 : 2.0}
+                strokeDasharray={isOverloaded ? '4,4' : '6,3'}
+                strokeOpacity="0.85"
+                className="cursor-pointer hover:stroke-cyan-300 transition-colors"
+                onClick={() => setSelectedEdge(edge)}
+              />
+            );
+          })}
+
+        {/* Drainage Nodes */}
+        {(isFloodDrainageMode || mapLayers.drainageNetwork) &&
+          DRAINAGE_NODES.map((node) => {
+            const [x, y] = projectCoords(node.lat, node.lng);
+            const state = node.timesteps[activeTimeStep];
+            const isSurcharged = state.status === 'surcharged' || state.status === 'critical';
+            return (
+              <circle
+                key={node.id}
+                cx={x}
+                cy={y}
+                r={isSurcharged ? 5.5 : 3.5}
+                fill="#090e18"
+                stroke={isSurcharged ? '#ef4444' : '#c084fc'}
+                strokeWidth="1.8"
+                className="cursor-pointer hover:fill-cyan-400 transition-colors"
+                onClick={() => setSelectedNode(node)}
+              />
+            );
+          })}
+
+        {/* Persistent Flood Extent Polygons */}
+        {FLOOD_ZONES.map((zone) => {
+          const zState = zone.timesteps[activeTimeStep];
+          const depth = zState.depthM;
+          let fillColor = '#06b6d4';
+          let fillOpacity = 0.18;
+          if (depth > 0.60) {
+            fillColor = '#ef4444';
+            fillOpacity = 0.30;
+          } else if (depth > 0.30) {
+            fillColor = '#f97316';
+            fillOpacity = 0.25;
+          } else if (depth > 0.15) {
+            fillColor = '#eab308';
+            fillOpacity = 0.22;
+          }
+          const pointsStr = zone.polygon
+            .map((c) => {
+              const [x, y] = projectCoords(c[0], c[1]);
+              return `${x},${y}`;
+            })
+            .join(' ');
+          return (
+            <polygon
+              key={zone.id}
+              points={pointsStr}
+              fill={fillColor}
+              fillOpacity={fillOpacity}
+              stroke={fillColor}
+              strokeWidth="1.2"
+              className="cursor-pointer"
+              onClick={() => setSelectedHotspotId(zone.id)}
             />
-          </>
-        ) : (
-          <rect width={SVG_WIDTH} height={SVG_HEIGHT} fill="url(#gisGrid)" />
-        )}
+          );
+        })}
 
-        {/* --- 1. BASE GEOGRAPHY: Brahmaputra River Northern Corridor --- */}
-        <path
-          d="M -20,120 Q 200,100 400,60 T 800,20 L 1020,-10 L 1020,-50 L -20,-50 Z"
-          fill="url(#riverGradient)"
-          stroke="#0284c7"
-          strokeWidth="1.5"
-          opacity="0.9"
-        />
-        <text x="320" y="45" fill="#38bdf8" fontSize="11" fontFamily="JetBrains Mono, monospace" opacity="0.6" letterSpacing="4">
-          BRAHMAPUTRA RIVER (MASTER RECEIVING STAGE)
-        </text>
+        {/* Road Network & Risk Layer */}
+        {ROAD_SEGMENTS.map((road) => {
+          const rState = road.timesteps[activeTimeStep];
+          const riskState = rState.riskState;
+          const isSelected = selectedRoad?.id === road.id;
+          const isFiltered = roadRiskFilter !== 'ALL' && riskState !== roadRiskFilter;
 
-        {/* --- 2. TERRAIN LAYER (DEM Contours & Hills) --- */}
-        {(activeLayers as any).terrain && (
-          <g id="terrain-layer" opacity="0.85">
-            {TERRAIN_HILLS.map((hill) => {
-              const [hx, hy] = projectCoords(hill.center[0], hill.center[1]);
-              return (
-                <g key={hill.id} className="cursor-help">
-                  <circle
-                    cx={hx}
-                    cy={hy}
-                    r="48"
-                    fill="#334155"
-                    fillOpacity="0.18"
-                    stroke="#64748b"
-                    strokeWidth="0.75"
-                    strokeDasharray="3 3"
-                  />
-                  <circle
-                    cx={hx}
-                    cy={hy}
-                    r="30"
-                    fill="#475569"
-                    fillOpacity="0.25"
-                    stroke="#94a3b8"
-                    strokeWidth="1"
-                  />
-                  <circle
-                    cx={hx}
-                    cy={hy}
-                    r="14"
-                    fill="#64748b"
-                    fillOpacity="0.45"
-                    stroke="#cbd5e1"
-                    strokeWidth="1.5"
-                  />
-                  <text
-                    x={hx}
-                    y={hy - 18}
-                    textAnchor="middle"
-                    fill="#f1f5f9"
-                    fontSize="9"
-                    fontFamily="JetBrains Mono, monospace"
-                    fontWeight="bold"
-                  >
-                    ▲ {hill.name} ({hill.elevationM}m)
-                  </text>
-                </g>
-              );
-            })}
+          let color = '#22c55e';
+          let weight = isFloodDrainageMode ? 2.0 : 3.5;
+          let opacity = isFloodDrainageMode ? 0.15 : isFiltered ? 0.15 : 0.88;
+          let dashArray: string | undefined = undefined;
 
-            {/* Runoff flow vectors */}
-            {FLOW_ACCUMULATION_VECTORS.map((vec, i) => {
-              const [fx, fy] = projectCoords(vec.from[0], vec.from[1]);
-              const [tx, ty] = projectCoords(vec.to[0], vec.to[1]);
-              return (
-                <line
-                  key={i}
-                  x1={fx}
-                  y1={fy}
-                  x2={tx}
-                  y2={ty}
-                  stroke="#f59e0b"
-                  strokeWidth="1.8"
-                  strokeDasharray="4 3"
-                  markerEnd="url(#flowArrow)"
-                  opacity="0.85"
-                />
-              );
-            })}
-          </g>
-        )}
+          if (riskState === 'BLOCKED') {
+            color = '#ef4444';
+            weight = isFloodDrainageMode ? 3.0 : 6.5;
+            opacity = isFloodDrainageMode ? 0.35 : isFiltered ? 0.20 : 1.0;
+            dashArray = '8,6';
+          } else if (riskState === 'HIGH RISK') {
+            color = '#f97316';
+            weight = isFloodDrainageMode ? 2.5 : 5.2;
+            opacity = isFloodDrainageMode ? 0.25 : isFiltered ? 0.20 : 0.95;
+          } else if (riskState === 'MODERATE') {
+            color = '#eab308';
+            weight = isFloodDrainageMode ? 2.2 : 4.2;
+            opacity = isFloodDrainageMode ? 0.20 : isFiltered ? 0.18 : 0.92;
+          }
 
-        {/* --- 3. NATURAL DRAINAGE & WETLANDS LAYER --- */}
-        {activeLayers.waterBodies && (
-          <g id="natural-drainage-layer">
-            {NATURAL_WATERWAYS.map((nw) => {
-              if (nw.polygon) {
-                const pointsStr = nw.polygon
-                  .map((coord) => projectCoords(coord[0], coord[1]).join(','))
-                  .join(' ');
-                return (
-                  <g key={nw.id}>
-                    <polygon
-                      points={pointsStr}
-                      fill="#0284c7"
-                      fillOpacity="0.2"
-                      stroke="#38bdf8"
-                      strokeWidth="1.5"
-                      strokeDasharray="4 2"
-                    />
-                    <polygon points={pointsStr} fill="url(#wetlandPattern)" />
-                    <text
-                      x="110"
-                      y="520"
-                      fill="#7dd3fc"
-                      fontSize="9"
-                      fontFamily="JetBrains Mono, monospace"
-                      fontWeight="bold"
-                    >
-                      {nw.name}
-                    </text>
-                  </g>
-                );
-              }
-              if (nw.path) {
-                const pathStr = nw.path
-                  .map((coord, idx) => {
-                    const [px, py] = projectCoords(coord[0], coord[1]);
-                    return `${idx === 0 ? 'M' : 'L'} ${px} ${py}`;
-                  })
-                  .join(' ');
-                return (
-                  <g key={nw.id}>
-                    <path
-                      d={pathStr}
-                      fill="none"
-                      stroke="#38bdf8"
-                      strokeWidth="4"
-                      strokeOpacity="0.4"
-                    />
-                    <path
-                      d={pathStr}
-                      fill="none"
-                      stroke="#0284c7"
-                      strokeWidth="2"
-                    />
-                  </g>
-                );
-              }
-              return null;
-            })}
-          </g>
-        )}
+          const pointsStr = road.path
+            .map((c) => {
+              const [x, y] = projectCoords(c[0], c[1]);
+              return `${x},${y}`;
+            })
+            .join(' ');
 
-        {/* --- 4. SIMULATED FLOOD DEPTH ZONES (SUBTLE UNDER ROADS) --- */}
-        {mapLayers.floodExtent && activeLayers.floodDepth && (
-          <g id="flood-zones-layer">
-            {FLOOD_ZONES.map((zone) => {
-              const zState = zone.timesteps[activeTimeStep];
-              const pointsStr = zone.polygon
-                .map((coord) => projectCoords(coord[0], coord[1]).join(','))
-                .join(' ');
-              const [cx, cy] = projectCoords(zone.center[0], zone.center[1]);
-
-              return (
-                <g
-                  key={zone.id}
-                  className="cursor-pointer transition-all duration-500"
-                  onMouseEnter={() =>
-                    setHoveredInfo(
-                      `${zone.name} | Simulated Depth: ${zState.depthM.toFixed(2)}m (${zState.risk.toUpperCase()} Risk) | Area: ${zState.affectedAreaHa} ha`
-                    )
-                  }
-                  onMouseLeave={() => setHoveredInfo(null)}
-                >
-                  {/* Subtle Inundation Polygon */}
-                  <polygon
-                    points={pointsStr}
-                    fill={getFloodColor(zState.depthM)}
-                    stroke={getFloodStroke(zState.depthM)}
-                    strokeWidth="1.2"
-                  />
-                  {/* Center Depth Label */}
-                  <text
-                    x={cx}
-                    y={cy}
-                    textAnchor="middle"
-                    fill="#94a3b8"
-                    fontSize="8.5"
-                    fontFamily="JetBrains Mono, monospace"
-                    fontWeight="bold"
-                    className="pointer-events-none drop-shadow"
-                  >
-                    {zState.depthM.toFixed(2)}m
-                  </text>
-                </g>
-              );
-            })}
-          </g>
-        )}
-
-        {/* --- 5. DRAINAGE NETWORK (CONDUITS & NODES) - OPTIONAL GIS LAYER (DEFAULT OFF) --- */}
-        {mapLayers.drainageNetwork && activeLayers.drainageNetwork && (
-          <g id="drainage-network-group">
-            <g id="drainage-edges-layer">
-              {DRAINAGE_EDGES.map((edge) => {
-                const eState = edge.timesteps[activeTimeStep];
-                const fromNode = DRAINAGE_NODES.find((n) => n.id === edge.fromNode);
-                const toNode = DRAINAGE_NODES.find((n) => n.id === edge.toNode);
-
-                if (!fromNode || !toNode) return null;
-
-                const [x1, y1] = projectCoords(fromNode.lat, fromNode.lng);
-                const [x2, y2] = projectCoords(toNode.lat, toNode.lng);
-
-                const color = getEdgeColor(eState.status);
-                const isSelected = selectedEdge?.id === edge.id;
-                const isOverloaded = eState.status === 'overloaded' || eState.status === 'critical';
-
-                return (
-                  <g
-                    key={edge.id}
-                    className="cursor-pointer"
-                    onClick={() => setSelectedEdge(edge)}
-                    onMouseEnter={() =>
-                      setHoveredInfo(
-                        `Edge ${edge.id}: ${edge.name} | Flow: ${eState.flowM3s} m³/s | Cap: ${edge.designCapacityM3s} m³/s | Util: ${eState.utilizationPct}%`
-                      )
-                    }
-                    onMouseLeave={() => setHoveredInfo(null)}
-                  >
-                    {/* Invisible fat hit area for easy clicking */}
-                    <line
-                      x1={x1}
-                      y1={y1}
-                      x2={x2}
-                      y2={y2}
-                      stroke="transparent"
-                      strokeWidth="14"
-                    />
-
-                    {/* Highlight ring if selected */}
-                    {isSelected && (
-                      <line
-                        x1={x1}
-                        y1={y1}
-                        x2={x2}
-                        y2={y2}
-                        stroke="#ffffff"
-                        strokeWidth="5"
-                        strokeOpacity="0.8"
-                      />
-                    )}
-
-                    {/* Base Edge Conduit Line (Subtle dashed blue/cyan) */}
-                    <line
-                      x1={x1}
-                      y1={y1}
-                      x2={x2}
-                      y2={y2}
-                      stroke={isOverloaded ? '#f43f5e' : '#0284c7'}
-                      strokeWidth={isSelected ? '2.5' : isOverloaded ? '2.2' : '1.5'}
-                      strokeDasharray="4 3"
-                      strokeLinecap="round"
-                      opacity="0.6"
-                      className={isOverloaded ? 'animate-pulse' : undefined}
-                    />
-
-                    {/* Flow Direction Chevron at Midpoint */}
-                    <circle
-                      cx={(x1 + x2) / 2}
-                      cy={(y1 + y2) / 2}
-                      r="1.8"
-                      fill={color}
-                      opacity="0.7"
-                    />
-                  </g>
-                );
-              })}
-            </g>
-
-            <g id="drainage-nodes-layer">
-              {DRAINAGE_NODES.map((node) => {
-                const nState = node.timesteps[activeTimeStep];
-                const [nx, ny] = projectCoords(node.lat, node.lng);
-                const color = getNodeColor(nState.status);
-                const isSelected = selectedNode?.id === node.id;
-                const isSurcharged = nState.status === 'surcharged' || nState.status === 'critical';
-                const isOutfall = node.type === 'outfall';
-
-                return (
-                  <g
-                    key={node.id}
-                    className="cursor-pointer"
-                    onClick={() => setSelectedNode(node)}
-                    onMouseEnter={() =>
-                      setHoveredInfo(
-                        `Node ${node.id}: ${node.name} (${node.type}) | Inflow: ${nState.incomingFlowM3s} m³/s | Util: ${nState.utilizationPct}% | Status: ${nState.status.toUpperCase()}`
-                      )
-                    }
-                    onMouseLeave={() => setHoveredInfo(null)}
-                  >
-                    {/* Selection Ring */}
-                    {isSelected && (
-                      <circle
-                        cx={nx}
-                        cy={ny}
-                        r="9"
-                        fill="none"
-                        stroke="#ffffff"
-                        strokeWidth="2"
-                        className="animate-spin"
-                      />
-                    )}
-
-                    {/* Surcharge Pulse Animation */}
-                    {isSurcharged && (
-                      <circle
-                        cx={nx}
-                        cy={ny}
-                        r="8"
-                        fill="none"
-                        stroke="#ef4444"
-                        strokeWidth="1.5"
-                        opacity="0.7"
-                        className="animate-ping"
-                      />
-                    )}
-
-                    {/* Outfall diamond vs regular node circle */}
-                    {isOutfall ? (
-                      <polygon
-                        points={`${nx},${ny - 5} ${nx + 5},${ny} ${nx},${ny + 5} ${nx - 5},${ny}`}
-                        fill="#0284c7"
-                        stroke="#38bdf8"
-                        strokeWidth="1.2"
-                      />
-                    ) : (
-                      <circle
-                        cx={nx}
-                        cy={ny}
-                        r={node.type === 'junction' ? 4.5 : 3.5}
-                        fill={color}
-                        stroke="#0b101c"
-                        strokeWidth="1.2"
-                      />
-                    )}
-
-                    {/* Node ID label for major nodes */}
-                    {(isSelected || ['N-003', 'N-012', 'N-014', 'N-022', 'N-030'].includes(node.id)) && (
-                      <text
-                        x={nx}
-                        y={ny - 6}
-                        textAnchor="middle"
-                        fill="#f8fafc"
-                        fontSize="7.5"
-                        fontFamily="JetBrains Mono, monospace"
-                        fontWeight="bold"
-                        className="drop-shadow-md pointer-events-none"
-                      >
-                        {node.id}
-                      </text>
-                    )}
-                  </g>
-                );
-              })}
-            </g>
-          </g>
-        )}
-
-        {/* --- 6. ROADS & RISK LAYER (PRIMARY VISUAL LAYER) --- */}
-        {mapLayers.roadRisk && activeLayers.roadExposure && (
-          <g id="roads-layer">
-            {ROAD_SEGMENTS.map((road) => {
-              const rState = road.timesteps[activeTimeStep];
-              const risk = rState?.riskState || 'NORMAL';
-              const isMatch = roadRiskFilter === 'ALL' || risk === roadRiskFilter;
-              const opacity = isMatch ? 1 : 0.12;
-
-              const pathStr = road.path
-                .map((coord, idx) => {
-                  const [px, py] = projectCoords(coord[0], coord[1]);
-                  return `${idx === 0 ? 'M' : 'L'} ${px} ${py}`;
-                })
-                .join(' ');
-
-              const color = getRoadRiskColor(risk);
-              const isBlocked = risk === 'BLOCKED';
-              const isHigh = risk === 'HIGH RISK';
-              const isSelected = selectedRoad?.id === road.id;
-              const strokeWidth = isBlocked || isHigh ? 4.5 : risk === 'MODERATE' ? 3.5 : 2.5;
-
-              // Midpoint for barrier icon
-              const midIdx = Math.floor(road.path.length / 2);
-              const midCoord = road.path[midIdx];
-              const [bx, by] = projectCoords(midCoord[0], midCoord[1]);
-
-              return (
-                <g
-                  key={road.id}
-                  opacity={opacity}
-                  className="cursor-pointer transition-opacity duration-300"
-                  onClick={() => focusRoad(road)}
-                  onMouseEnter={() =>
-                    setHoveredInfo(
-                      `Road: ${road.name} | Risk: ${risk} | Depth: ${rState.waterDepthM.toFixed(2)}m${rState.drainageStressPct ? ` | Stress: ${rState.drainageStressPct}%` : ''}`
-                    )
-                  }
-                  onMouseLeave={() => setHoveredInfo(null)}
-                >
-                  {/* Selection Cyan Glow Outline */}
-                  {isSelected && (
-                    <path
-                      d={pathStr}
-                      fill="none"
-                      stroke="#06b6d4"
-                      strokeWidth={strokeWidth + 5}
-                      strokeOpacity="0.8"
-                      strokeLinecap="round"
-                      className="animate-pulse"
-                    />
-                  )}
-
-                  {/* Dark Base Line */}
-                  <path
-                    d={pathStr}
-                    fill="none"
-                    stroke="#0b101c"
-                    strokeWidth={strokeWidth + 2}
-                    strokeLinecap="round"
-                  />
-
-                  {/* Colored Road Risk Line */}
-                  <path
-                    d={pathStr}
-                    fill="none"
-                    stroke={color}
-                    strokeWidth={strokeWidth}
-                    strokeDasharray={isBlocked ? '8 6' : undefined}
-                    strokeLinecap="round"
-                    className={isBlocked ? 'animate-pulse' : undefined}
-                  />
-
-                  {/* Blocked Road Closure Barrier Badge at Midpoint */}
-                  {isBlocked && isMatch && (
-                    <g transform={`translate(${bx - 7}, ${by - 7})`} className="pointer-events-none">
-                      <rect
-                        width="14"
-                        height="14"
-                        rx="3"
-                        fill="#ef4444"
-                        stroke="#ffffff"
-                        strokeWidth="1"
-                      />
-                      <text
-                        x="7"
-                        y="10.5"
-                        textAnchor="middle"
-                        fontSize="9"
-                        fill="#ffffff"
-                        fontWeight="bold"
-                      >
-                        ⛔
-                      </text>
-                    </g>
-                  )}
-                </g>
-              );
-            })}
-          </g>
-        )}
-
-        {/* --- 7. SAFE ROUTING DEMO OVERLAY (ON TOP OF ROADS) --- */}
-        {showRoutes && mapLayers.routes && activeRoute && (
-          <g id="routing-overlay-layer">
-            {/* Normal Route (Direct, Flood Hazard) */}
-            {activeRoute.normalRoute.path.length > 0 && (
-              <g>
-                <path
-                  d={activeRoute.normalRoute.path
-                    .map((c, i) => {
-                      const [rx, ry] = projectCoords(c[0], c[1]);
-                      return `${i === 0 ? 'M' : 'L'} ${rx} ${ry}`;
-                    })
-                    .join(' ')}
+          return (
+            <g key={road.id}>
+              {isSelected && (
+                <polyline
+                  points={pointsStr}
                   fill="none"
-                  stroke="#ef4444"
-                  strokeWidth="4.5"
-                  strokeDasharray="8 6"
-                  strokeLinecap="round"
-                  className="animate-pulse"
-                />
-
-                {/* Midpoint Callout Badge */}
-                {(() => {
-                  const midIdx = Math.floor(activeRoute.normalRoute.path.length / 2);
-                  const [bx, by] = projectCoords(activeRoute.normalRoute.path[midIdx][0], activeRoute.normalRoute.path[midIdx][1]);
-                  return (
-                    <g transform={`translate(${bx - 95}, ${by - 12})`} className="pointer-events-none">
-                      <rect width="190" height="20" rx="6" fill="#0f172a" stroke="#ef4444" strokeWidth="1.5" />
-                      <text x="95" y="13" textAnchor="middle" fill="#fca5a5" fontSize="8" fontWeight="bold" fontFamily="Inter, sans-serif">
-                        ⛔ ROUTE BLOCKED BY FLOOD RISK
-                      </text>
-                    </g>
-                  );
-                })()}
-              </g>
-            )}
-
-            {/* Flood-Safe Route (Lower Simulated Flood Exposure) */}
-            {activeRoute.safeRoute.path.length > 0 && (
-              <g>
-                <path
-                  d={activeRoute.safeRoute.path
-                    .map((c, i) => {
-                      const [rx, ry] = projectCoords(c[0], c[1]);
-                      return `${i === 0 ? 'M' : 'L'} ${rx} ${ry}`;
-                    })
-                    .join(' ')}
-                  fill="none"
-                  stroke="#10b981"
-                  strokeWidth="5.5"
+                  stroke="#38bdf8"
+                  strokeWidth="12"
+                  strokeOpacity="0.85"
                   strokeLinecap="round"
                 />
+              )}
+              <polyline
+                points={pointsStr}
+                fill="none"
+                stroke={isFiltered ? '#475569' : color}
+                strokeWidth={isFiltered ? 2 : weight}
+                strokeOpacity={opacity}
+                strokeDasharray={dashArray}
+                strokeLinecap="round"
+                className="cursor-pointer hover:stroke-cyan-300 transition-colors"
+                onClick={() => focusRoad(road)}
+              />
+            </g>
+          );
+        })}
 
-                {/* Midpoint Callout Badge */}
-                {(() => {
-                  const midIdx = Math.floor(activeRoute.safeRoute.path.length / 2);
-                  const [sx, sy] = projectCoords(activeRoute.safeRoute.path[midIdx][0], activeRoute.safeRoute.path[midIdx][1]);
-                  return (
-                    <g transform={`translate(${sx - 95}, ${sy - 12})`} className="pointer-events-none">
-                      <rect width="190" height="20" rx="6" fill="#064e3b" stroke="#10b981" strokeWidth="1.5" />
-                      <text x="95" y="13" textAnchor="middle" fill="#a7f3d0" fontSize="8" fontWeight="bold" fontFamily="Inter, sans-serif">
-                        ✓ LOWER FLOOD EXPOSURE
-                      </text>
-                    </g>
-                  );
-                })()}
-              </g>
-            )}
+        {/* Hotspot ⚠️ Markers */}
+        {HOTSPOTS_DATA.map((spot) => {
+          const [x, y] = projectCoords(spot.lat, spot.lng);
+          return (
+            <g
+              key={spot.id}
+              transform={`translate(${x - 12}, ${y - 12})`}
+              className="cursor-pointer"
+              onClick={() => setSelectedHotspotId(spot.id)}
+            >
+              <rect width="24" height="24" rx="5" fill="#ef4444" stroke="#ffffff" strokeWidth="2" />
+              <text x="12" y="16" fill="#ffffff" fontSize="13" fontWeight="bold" textAnchor="middle">
+                ⚠
+              </text>
+            </g>
+          );
+        })}
 
-            {/* Origin & Destination Markers */}
-            {(() => {
-              const [ox, oy] = projectCoords(activeRoute.originCoords[0], activeRoute.originCoords[1]);
-              const [dx, dy] = projectCoords(activeRoute.destCoords[0], activeRoute.destCoords[1]);
-              return (
-                <>
-                  {/* Origin */}
-                  <circle cx={ox} cy={oy} r="7" fill="#06b6d4" stroke="#ffffff" strokeWidth="2" />
-                  <text x={ox} y={oy - 10} textAnchor="middle" fill="#06b6d4" fontSize="9" fontWeight="bold">
-                    START: {activeRoute.origin}
-                  </text>
-
-                  {/* Destination */}
-                  <circle cx={dx} cy={dy} r="7" fill="#10b981" stroke="#ffffff" strokeWidth="2" />
-                  <text x={dx} y={dy - 10} textAnchor="middle" fill="#10b981" fontSize="9" fontWeight="bold">
-                    DEST: {activeRoute.destination}
-                  </text>
-                </>
-              );
-            })()}
-          </g>
-        )}
-
-        {/* --- 8. SMALL HISTORICAL FLOOD HOTSPOT WARNING MARKERS (⚠️) --- */}
-        {mapLayers.hotspots && (
-          <g id="hotspots-layer">
-            {HOTSPOTS_DATA.map((spot) => {
-              const [hx, hy] = projectCoords(spot.lat, spot.lng);
-              return (
-                <g
-                  key={spot.id}
-                  transform={`translate(${hx - 8}, ${hy - 8})`}
-                  className="cursor-pointer"
-                  onClick={() => centerOnCoord(spot.lat, spot.lng)}
-                  onMouseEnter={() => setHoveredInfo(`Hotspot: ${spot.name} (Click to inspect)`)}
-                  onMouseLeave={() => setHoveredInfo(null)}
-                >
-                  <rect width="16" height="16" rx="4" fill="#ef4444" stroke="#ffffff" strokeWidth="1.5" />
-                  <text x="8" y="12" textAnchor="middle" fill="#ffffff" fontSize="10" fontWeight="bold">
-                    ⚠
-                  </text>
-                </g>
-              );
-            })}
-          </g>
-        )}
+        {/* City Corridor Labels */}
+        {[
+          { text: 'Khanapara', lat: 26.1280, lng: 91.8150 },
+          { text: 'Zoo Road', lat: 26.1680, lng: 91.7820 },
+          { text: 'GS Road', lat: 26.1480, lng: 91.7760 },
+          { text: 'Rukminigaon', lat: 26.1360, lng: 91.7910 },
+          { text: 'Jalukbari', lat: 26.1310, lng: 91.7450 },
+          { text: 'Dispur', lat: 26.1420, lng: 91.8020 },
+        ].map((lbl) => {
+          const [x, y] = projectCoords(lbl.lat, lbl.lng);
+          return (
+            <text
+              key={lbl.text}
+              x={x}
+              y={y}
+              fill="#ffffff"
+              fontSize="11"
+              fontWeight="600"
+              opacity="0.8"
+              textAnchor="middle"
+              className="pointer-events-none font-sans"
+            >
+              {lbl.text}
+            </text>
+          );
+        })}
       </svg>
-
-      {/* Map Scale Bar & Coordinates Footnote */}
-      <div className="absolute bottom-3 right-3 z-20 bg-[#0f172a]/90 backdrop-blur-md px-2.5 py-1 rounded border border-[#223554] text-[10px] font-mono text-slate-400 flex items-center gap-3">
-        <div className="flex items-center gap-1.5">
-          <div className="w-12 h-1 bg-slate-400 border border-slate-700"></div>
-          <span>~2 km</span>
-        </div>
-        <span>26.14°N, 91.74°E (Guwahati)</span>
-      </div>
     </div>
   );
 };

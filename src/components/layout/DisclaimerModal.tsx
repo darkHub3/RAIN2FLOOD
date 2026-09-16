@@ -82,7 +82,7 @@ export const DisclaimerModal: React.FC = () => {
               RAIN NOWCAST + TERRAIN (DEM) + DRAINAGE CAPACITY CHECK
             </div>
             <p className="text-xs text-slate-400 leading-relaxed">
-              Terrain dictates runoff convergence; underground conveyance dictates gravity discharge; and the condition <code className="text-amber-300 font-mono">Flow &gt; Capacity</code> triggers hydraulic surcharge and street-level waterlogging, which directly informs flood-safe routing.
+              Terrain dictates runoff convergence; underground conveyance dictates gravity discharge; and the condition <code className="text-amber-300 font-mono">Flow &gt; Capacity</code> triggers hydraulic surcharge and street-level waterlogging, which directly informs road-level flood impact and blocked corridor identification (with dynamic vehicle routing planned as future scope).
             </p>
           </div>
 
@@ -103,7 +103,7 @@ export const DisclaimerModal: React.FC = () => {
                 SIMULATED PILOT DATA
               </div>
               <p className="text-slate-400 text-[11px]">
-                All values (rainfall rate, flood depth, pipe capacity, and transit routes) are simulated test assets.
+                All values (rainfall rate, flood depth, pipe capacity, and road impact states) are simulated test assets.
               </p>
             </div>
           </div>

@@ -47,7 +47,7 @@ export const Header: React.FC = () => {
     { id: 'dashboard', label: 'GIS Dashboard', icon: <LayoutDashboard className="w-4 h-4" /> },
     { id: 'drainage', label: 'Drainage Network', icon: <Network className="w-4 h-4" /> },
     { id: 'forecast', label: 'Forecast', icon: <TrendingUp className="w-4 h-4" /> },
-    { id: 'route', label: 'Road Risk & Routing', icon: <Route className="w-4 h-4" /> },
+    { id: 'roadrisk', label: 'Road Risk & Impact', icon: <Route className="w-4 h-4" /> },
     { id: 'howitworks', label: 'How It Works', icon: <HelpCircle className="w-4 h-4" /> },
   ];
 
@@ -91,7 +91,7 @@ export const Header: React.FC = () => {
               FloodCast<span className="text-xs align-top text-cyan-400 font-normal">™</span>
             </h1>
             <span className="text-xs text-slate-400 font-normal hidden lg:inline-block border-l border-slate-700 pl-2.5">
-              Urban Flood Nowcasting & Safe Route System
+              Flood Risk & Road Impact Modeling | Guwahati Pilot
             </span>
           </div>
         </div>
@@ -169,21 +169,23 @@ export const Header: React.FC = () => {
           </div>
         </div>
 
-        {/* RIGHT: LOCATION, LIVE BADGE, HAMBURGER (Mobile) */}
+        {/* RIGHT: HONEST PROTOTYPE BADGES & CONTROLS */}
         <div className="flex items-center gap-2 sm:gap-3 text-xs shrink-0 font-sans">
-          {/* Location & Time (Hidden on small mobile) */}
-          <div className="hidden sm:flex items-center gap-1.5 text-slate-300">
-            <MapPin className="w-3.5 h-3.5 text-cyan-400" />
-            <div className="flex flex-col text-right sm:text-left leading-tight">
-              <span className="font-semibold text-slate-200 text-[11px] sm:text-xs">Guwahati, Assam</span>
-              <span className="text-[9px] sm:text-[10px] text-slate-400 font-mono">16 Sep 2026 | 12:40 AM</span>
-            </div>
+          {/* Desktop & Tablet Honest Prototype Mode Badges */}
+          <div className="hidden sm:flex items-center gap-2">
+            <span className="px-2.5 py-1 rounded bg-amber-950/70 border border-amber-500/60 text-amber-300 text-[10px] sm:text-[11px] font-mono font-bold tracking-wide shadow-sm flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
+              PROTOTYPE MODE | SIMULATED PILOT DATA
+            </span>
+            <span className="hidden xl:inline-flex px-2 py-1 rounded bg-cyan-950/70 border border-cyan-500/50 text-cyan-300 text-[10px] font-mono font-bold tracking-wide">
+              GUWAHATI PILOT STUDY AREA
+            </span>
           </div>
 
-          {/* Live Status Pill */}
-          <div className="flex items-center gap-1 px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full bg-emerald-950/40 border border-emerald-500/40 text-emerald-400 text-[10px] sm:text-xs font-medium shadow-sm">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-            <span>Live</span>
+          {/* Mobile concise badge */}
+          <div className="sm:hidden flex items-center gap-1 px-2 py-0.5 rounded bg-amber-950/70 border border-amber-500/60 text-amber-300 text-[9px] font-mono font-bold">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
+            PROTOTYPE MODE
           </div>
 
           {/* Disclaimer Info Button */}

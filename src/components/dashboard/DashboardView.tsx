@@ -23,7 +23,7 @@ export const DashboardView: React.FC = () => {
           }`}
         >
           <Map className="w-3.5 h-3.5" />
-          <span>Live Map</span>
+          <span>GIS Map</span>
         </button>
 
         <button
