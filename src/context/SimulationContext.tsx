@@ -44,6 +44,11 @@ interface SimulationContextType {
   selectNodeById: (id: string) => void;
   selectEdgeById: (id: string) => void;
   selectRoadById: (id: string) => void;
+  roadRiskFilter: 'ALL' | 'NORMAL' | 'MODERATE' | 'HIGH RISK' | 'BLOCKED';
+  setRoadRiskFilter: (filter: 'ALL' | 'NORMAL' | 'MODERATE' | 'HIGH RISK' | 'BLOCKED') => void;
+  selectedHotspotId: string | null;
+  setSelectedHotspotId: (id: string | null) => void;
+  focusRoad: (road: RoadSegment) => void;
   activeTab: NavigationTab;
   setActiveTab: (tab: NavigationTab) => void;
   selectedRouteId: string;
@@ -88,6 +93,8 @@ export const SimulationProvider: React.FC<{ children: ReactNode }> = ({ children
   const [selectedNode, setSelectedNode] = useState<DrainageNode | null>(null);
   const [selectedEdge, setSelectedEdge] = useState<DrainageEdge | null>(null);
   const [selectedRoad, setSelectedRoad] = useState<RoadSegment | null>(null);
+  const [roadRiskFilter, setRoadRiskFilter] = useState<'ALL' | 'NORMAL' | 'MODERATE' | 'HIGH RISK' | 'BLOCKED'>('ALL');
+  const [selectedHotspotId, setSelectedHotspotId] = useState<string | null>(null);
 
   // Auto-playback loop for RUN NOWCAST
   useEffect(() => {
@@ -158,12 +165,23 @@ export const SimulationProvider: React.FC<{ children: ReactNode }> = ({ children
     }
   };
 
+  const focusRoad = (road: RoadSegment) => {
+    setSelectedRoad(road);
+    setSelectedNode(null);
+    setSelectedEdge(null);
+    if (road.path && road.path.length > 0) {
+      const midIdx = Math.floor(road.path.length / 2);
+      const [lat, lng] = road.path[midIdx];
+      setTargetLocation({ lat, lng, zoom: 15.5, name: road.name });
+    }
+  };
+
   const selectRoadById = (id: string) => {
     const found = ROAD_SEGMENTS.find((r) => r.id === id) || null;
-    setSelectedRoad(found);
     if (found) {
-      setSelectedNode(null);
-      setSelectedEdge(null);
+      focusRoad(found);
+    } else {
+      setSelectedRoad(null);
     }
   };
 
@@ -208,6 +226,11 @@ export const SimulationProvider: React.FC<{ children: ReactNode }> = ({ children
         selectNodeById,
         selectEdgeById,
         selectRoadById,
+        focusRoad,
+        roadRiskFilter,
+        setRoadRiskFilter,
+        selectedHotspotId,
+        setSelectedHotspotId,
         activeTab,
         setActiveTab,
         selectedRouteId,

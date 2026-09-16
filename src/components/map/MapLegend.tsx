@@ -78,15 +78,33 @@ export const MapLegend: React.FC = () => {
         </div>
       </div>
 
-      {/* Natural Drainage & Roads */}
-      <div className="space-y-1 pt-1 border-t border-slate-800 text-[10px]">
-        <div className="flex items-center gap-2">
-          <span className="w-4 h-1.5 bg-sky-400/60 rounded border border-sky-300"></span>
-          <span>Natural Channel / Wetland Buffer</span>
+      {/* Road Risk Network */}
+      <div className="space-y-1.5 pt-1.5 border-t border-slate-800 text-[10px]">
+        <div className="text-[10px] text-slate-400 font-semibold uppercase">Road Network Risk</div>
+        <div className="grid grid-cols-2 gap-1.5 text-[10px]">
+          <div className="flex items-center gap-1.5">
+            <span className="w-3.5 h-1 bg-emerald-400 rounded"></span>
+            <span>Normal</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="w-3.5 h-1 bg-amber-400 rounded"></span>
+            <span>Moderate</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="w-3.5 h-1 bg-orange-500 rounded"></span>
+            <span>High Risk</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="w-3.5 h-1 border-t-2 border-dashed border-red-500"></span>
+            <span className="text-red-300 font-semibold flex items-center gap-0.5">
+              <span>Blocked</span>
+              <span>⛔</span>
+            </span>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="w-4 h-1 bg-rose-500/80 rounded"></span>
-          <span>Road At High Inundation Risk</span>
+        <div className="flex items-center gap-2 pt-0.5">
+          <span className="w-4 h-1 bg-cyan-400 rounded shadow-sm"></span>
+          <span className="text-cyan-300">Lower-Exposure Alternative Route</span>
         </div>
       </div>
 

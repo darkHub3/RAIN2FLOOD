@@ -27,7 +27,8 @@ export const ROUTE_SCENARIOS: RouteScenario[] = [
       estTimeMin: 45,
       floodExposure: "HIGH",
       maxDepthM: 0.64,
-      status: "IMPASSABLE / HIGH FLOOD EXPOSURE",
+      blockedSegmentsCount: 3,
+      status: "ROUTE BLOCKED BY SIMULATED FLOOD RISK",
       notes: "Direct corridor via GS Road traverses severe flood bottlenecks at Bhangagarh and Rukminigaon.",
       floodedSegments: [
         "GS Road (Bhangagarh) - Surcharged Conduit D-027",
@@ -50,6 +51,7 @@ export const ROUTE_SCENARIOS: RouteScenario[] = [
       estTimeMin: 28,
       floodExposure: "LOW",
       maxDepthM: 0.12,
+      blockedSegmentsCount: 0,
       status: "LOWER SIMULATED FLOOD EXPOSURE",
       notes: "Rerouted via northern Chandmari ridge and VIP Road eastern elevated corridor, avoiding depressed GS Road basins.",
       elevationAdvantageM: 5.8
@@ -76,7 +78,8 @@ export const ROUTE_SCENARIOS: RouteScenario[] = [
       estTimeMin: 52,
       floodExposure: "HIGH",
       maxDepthM: 0.72,
-      status: "IMPASSABLE / HIGH FLOOD EXPOSURE",
+      blockedSegmentsCount: 2,
+      status: "ROUTE BLOCKED BY SIMULATED FLOOD RISK",
       notes: "Passes directly through the Anil Nagar low-lying depression and surcharged Santipur collectors.",
       floodedSegments: [
         "Anil Nagar Sump Zone (Inlet N-012 surcharged)",
@@ -97,6 +100,7 @@ export const ROUTE_SCENARIOS: RouteScenario[] = [
       estTimeMin: 32,
       floodExposure: "LOW",
       maxDepthM: 0.10,
+      blockedSegmentsCount: 0,
       status: "LOWER SIMULATED FLOOD EXPOSURE",
       notes: "Follows the elevated Brahmaputra riverfront embankment and high ground north of Nilachal ridge.",
       elevationAdvantageM: 6.4
@@ -122,7 +126,8 @@ export const ROUTE_SCENARIOS: RouteScenario[] = [
       estTimeMin: 48,
       floodExposure: "HIGH",
       maxDepthM: 0.58,
-      status: "IMPASSABLE / HIGH FLOOD EXPOSURE",
+      blockedSegmentsCount: 2,
+      status: "ROUTE BLOCKED BY SIMULATED FLOOD RISK",
       notes: "Passes through inundated Hatigaon-Bhetapara residential bottleneck with surcharging open drains.",
       floodedSegments: [
         "Hatigaon Main Road Surcharge",
@@ -143,6 +148,7 @@ export const ROUTE_SCENARIOS: RouteScenario[] = [
       estTimeMin: 34,
       floodExposure: "LOW",
       maxDepthM: 0.14,
+      blockedSegmentsCount: 0,
       status: "LOWER SIMULATED FLOOD EXPOSURE",
       notes: "Reroutes along the grade-separated southern National Highway bypass corridor.",
       elevationAdvantageM: 4.2

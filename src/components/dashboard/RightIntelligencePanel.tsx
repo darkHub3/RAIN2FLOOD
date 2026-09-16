@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useSimulation, TimeStep } from '../../context/SimulationContext';
 import { DRAINAGE_EDGES } from '../../data/drainageEdges';
+import { ROAD_SEGMENTS } from '../../data/roads';
 import {
   Clock,
   AlertTriangle,
@@ -21,24 +22,6 @@ import {
   Radio
 } from 'lucide-react';
 
-interface AffectedRoadItem {
-  id: string;
-  name: string;
-  risk: 'High' | 'Moderate' | 'Low';
-  timeToFlood: string;
-  depth: string;
-  lat: number;
-  lng: number;
-}
-
-const TOP_AFFECTED_ROADS: AffectedRoadItem[] = [
-  { id: 'R-01', name: 'Khanapara Crossing', risk: 'High', timeToFlood: '48 min', depth: '85 cm', lat: 26.1265, lng: 91.8080 },
-  { id: 'R-02', name: 'Zoo Road', risk: 'High', timeToFlood: '1 hr 10 min', depth: '70 cm', lat: 26.1668, lng: 91.7794 },
-  { id: 'R-03', name: 'GS Road', risk: 'Moderate', timeToFlood: '1 hr 45 min', depth: '45 cm', lat: 26.1550, lng: 91.7760 },
-  { id: 'R-04', name: 'Rukminigaon Road', risk: 'Moderate', timeToFlood: '2 hr 10 min', depth: '38 cm', lat: 26.1420, lng: 91.7920 },
-  { id: 'R-05', name: 'Jalukbari Road', risk: 'Low', timeToFlood: '2 hr 50 min', depth: '15 cm', lat: 26.1520, lng: 91.6680 },
-];
-
 export const RightIntelligencePanel: React.FC = () => {
   const {
     activeTimeStep,
@@ -49,6 +32,7 @@ export const RightIntelligencePanel: React.FC = () => {
     setSelectedNode,
     selectedRoad,
     setSelectedRoad,
+    focusRoad,
     setActiveTab,
     setTargetLocation,
   } = useSimulation();
@@ -59,13 +43,24 @@ export const RightIntelligencePanel: React.FC = () => {
   const edgeState = activeAlertEdge.timesteps[activeTimeStep];
   const isEdgeOverloaded = edgeState.flowM3s > activeAlertEdge.designCapacityM3s;
 
+  const khanaparaRoad = ROAD_SEGMENTS.find((r) => r.id === 'RD-01') || ROAD_SEGMENTS[0];
+  const khanaparaState = khanaparaRoad.timesteps[activeTimeStep];
+
   const timelineSteps: { id: TimeStep | '+30MIN'; label: string; depth: string; targetStep: TimeStep }[] = [
-    { id: 'NOW', label: 'Now', depth: '35cm', targetStep: 'NOW' },
-    { id: '+30MIN', label: '+30min', depth: '55cm', targetStep: '+1HR' },
-    { id: '+1HR', label: '+1hr', depth: '80cm', targetStep: '+1HR' },
-    { id: '+2HR', label: '+2hr', depth: '95cm', targetStep: '+2HR' },
-    { id: '+3HR', label: '+3hr', depth: '100+cm', targetStep: '+3HR' },
+    { id: 'NOW', label: 'Now', depth: '48cm', targetStep: 'NOW' },
+    { id: '+30MIN', label: '+30min', depth: '68cm', targetStep: '+1HR' },
+    { id: '+1HR', label: '+1hr', depth: '85cm', targetStep: '+1HR' },
+    { id: '+2HR', label: '+2hr', depth: '105cm', targetStep: '+2HR' },
+    { id: '+3HR', label: '+3hr', depth: '125cm', targetStep: '+3HR' },
   ];
+
+  // Top 5 affected roads dynamically sorted by flood depth
+  const topAffectedRoads = useMemo(() => {
+    return [...ROAD_SEGMENTS]
+      .filter((r) => r.timesteps[activeTimeStep]?.riskState !== 'NORMAL')
+      .sort((a, b) => b.timesteps[activeTimeStep].waterDepthM - a.timesteps[activeTimeStep].waterDepthM)
+      .slice(0, 5);
+  }, [activeTimeStep]);
 
   return (
     <aside
@@ -208,24 +203,42 @@ export const RightIntelligencePanel: React.FC = () => {
       </section>
 
       {/* 2. CRITICAL HAZARD ALERT CARD */}
-      <div className="relative overflow-hidden rounded-lg bg-gradient-to-br from-red-950/70 via-rose-950/40 to-[#0d1522] border border-rose-600/50 p-3 shadow-lg shadow-red-950/30">
+      <div className={`relative overflow-hidden rounded-lg border p-3 shadow-lg transition-all ${
+        khanaparaState.riskState === 'BLOCKED'
+          ? 'bg-gradient-to-br from-red-950/80 via-rose-950/50 to-[#0d1522] border-rose-600/60 shadow-red-950/40'
+          : 'bg-gradient-to-br from-orange-950/80 via-amber-950/50 to-[#0d1522] border-amber-500/50 shadow-amber-950/30'
+      }`}>
         <div className="flex items-start gap-2.5">
-          <div className="p-2 rounded-lg bg-red-600/20 text-rose-400 border border-red-500/40 shrink-0 mt-0.5">
+          <div className={`p-2 rounded-lg shrink-0 mt-0.5 border ${
+            khanaparaState.riskState === 'BLOCKED'
+              ? 'bg-red-600/20 text-rose-400 border-red-500/40'
+              : 'bg-amber-600/20 text-amber-400 border-amber-500/40'
+          }`}>
             <AlertTriangle className="w-4 h-4 animate-bounce" />
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1.5 flex-wrap">
               <span className="text-[10px] font-black uppercase tracking-wider text-white">
-                This area will become a RISK ZONE in 48 min
+                {khanaparaState.riskState === 'BLOCKED'
+                  ? 'KHANAPARA CROSSING: BLOCKED (IMPASSABLE)'
+                  : 'KHANAPARA CROSSING: RISK ZONE IN 48 MIN'}
               </span>
             </div>
             <div className="mt-1 flex items-center gap-2">
-              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-red-500/20 text-red-300 border border-red-500/40">
-                High Flood Probability
+              <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border ${
+                khanaparaState.riskState === 'BLOCKED'
+                  ? 'bg-red-500/20 text-red-300 border-red-500/40'
+                  : 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+              }`}>
+                {khanaparaState.riskState === 'BLOCKED'
+                  ? `Submerged (${khanaparaState.waterDepthM.toFixed(2)}m)`
+                  : `High Inundation Risk (${khanaparaState.waterDepthM.toFixed(2)}m)`}
               </span>
             </div>
             <p className="mt-1.5 text-[10px] text-rose-200/90 font-medium">
-              Take alternative route now.
+              {khanaparaState.riskState === 'BLOCKED'
+                ? 'Corridor closure recommended. Divert traffic to higher elevation routes.'
+                : 'Overland flow accumulating rapidly. Take lower-exposure route.'}
             </p>
           </div>
         </div>
@@ -237,19 +250,23 @@ export const RightIntelligencePanel: React.FC = () => {
           <div className="flex items-center gap-1.5">
             <Car className="w-3.5 h-3.5 text-rose-400" />
             <h3 className="text-[11px] font-bold text-white tracking-tight uppercase">
-              Affected Roads (Top 5)
+              Affected Corridors (Top 5)
             </h3>
           </div>
-          <span className="text-[9px] text-slate-400 font-mono">Real-time projection</span>
+          <span className="text-[9px] text-slate-400 font-mono">Dynamic GIS Sync</span>
         </div>
 
         <div className="space-y-1 bg-[#090e18]/80 rounded-lg p-1.5 border border-[#1e293b]">
-          {TOP_AFFECTED_ROADS.map((road) => {
-            const isHigh = road.risk === 'High';
-            const isMod = road.risk === 'Moderate';
+          {topAffectedRoads.map((road) => {
+            const rState = road.timesteps[activeTimeStep];
+            const isBlocked = rState.riskState === 'BLOCKED';
+            const isHigh = rState.riskState === 'HIGH RISK';
+            const isMod = rState.riskState === 'MODERATE';
 
-            const badgeBg = isHigh
+            const badgeBg = isBlocked
               ? 'bg-rose-500/20 text-rose-300 border-rose-500/40'
+              : isHigh
+              ? 'bg-orange-500/20 text-orange-300 border-orange-500/40'
               : isMod
               ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
               : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40';
@@ -257,30 +274,29 @@ export const RightIntelligencePanel: React.FC = () => {
             return (
               <div
                 key={road.id}
-                onClick={() => {
-                  setTargetLocation({ lat: road.lat, lng: road.lng, zoom: 15, name: road.name });
-                }}
-                className="flex items-center justify-between py-1 px-1.5 rounded hover:bg-slate-800/60 cursor-pointer transition-colors group"
-                title={`Center map on ${road.name}`}
+                onClick={() => focusRoad(road)}
+                className="flex items-center justify-between py-1.5 px-2 rounded hover:bg-slate-800/60 cursor-pointer transition-colors group border border-transparent hover:border-slate-700"
+                title={`Focus ${road.name} on map`}
               >
                 <div className="flex flex-col">
                   <div className="flex items-center gap-1">
-                    <span className="text-slate-200 font-medium text-[11px] group-hover:text-cyan-300 transition-colors">
+                    <span className="text-slate-200 font-semibold text-[11px] group-hover:text-cyan-300 transition-colors">
                       {road.name}
                     </span>
                     <MapPin className="w-2.5 h-2.5 text-slate-500 group-hover:text-cyan-400 opacity-0 group-hover:opacity-100 transition-opacity" />
                   </div>
-                  <span className="text-[9px] font-mono text-slate-500">
-                    Est. Depth: <span className="text-slate-400">{road.depth}</span>
+                  <span className="text-[9px] font-mono text-slate-400">
+                    Depth: <strong className="text-cyan-300">{rState.waterDepthM.toFixed(2)}m</strong>
+                    {rState.drainageStressPct ? ` | ${rState.drainageStressPct}% stress` : ''}
                   </span>
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border ${badgeBg}`}>
-                    {road.risk}
+                  <span className={`text-[8px] font-mono font-bold px-1.5 py-0.5 rounded border ${badgeBg}`}>
+                    {rState.riskState}
                   </span>
-                  <span className="text-[10px] font-mono text-slate-400 w-14 text-right">
-                    {road.timeToFlood}
+                  <span className="text-[9px] font-mono text-slate-400 w-16 text-right">
+                    {rState.timeToCritical || 'Projected'}
                   </span>
                 </div>
               </div>
@@ -289,20 +305,20 @@ export const RightIntelligencePanel: React.FC = () => {
         </div>
       </section>
 
-      {/* 4. SAFE ROUTE SUGGESTIONS */}
+      {/* 4. LOWER-EXPOSURE ROUTE OPTIONS */}
       <section className="space-y-1.5">
         <div className="flex items-center justify-between border-b border-[#1e293b] pb-1">
           <div className="flex items-center gap-1.5">
             <Route className="w-3.5 h-3.5 text-emerald-400" />
             <h3 className="text-[11px] font-bold text-white tracking-tight uppercase">
-              Safe Route Suggestions
+              Lower-Exposure Route Options
             </h3>
           </div>
           <button
             onClick={() => setActiveTab('route')}
             className="text-[9px] text-cyan-400 hover:text-cyan-300 flex items-center gap-0.5 transition-colors"
           >
-            <span>Full Analysis</span>
+            <span>Full Routing</span>
             <ChevronRight className="w-2.5 h-2.5" />
           </button>
         </div>
@@ -325,11 +341,11 @@ export const RightIntelligencePanel: React.FC = () => {
                 </span>
               </div>
               <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
-                Clear
+                LOWER EXPOSURE
               </span>
             </div>
             <div className="mt-1 flex items-center justify-between text-[10px] text-slate-300">
-              <span className="font-mono">via NH 17</span>
+              <span className="font-mono">via NH 17 (Ridge)</span>
               <span className="font-mono text-emerald-400 font-semibold">+8 min transit</span>
             </div>
           </div>
@@ -347,11 +363,11 @@ export const RightIntelligencePanel: React.FC = () => {
                   <Car className="w-3 h-3" />
                 </div>
                 <span className="font-bold text-white text-[11px] group-hover:text-cyan-300 transition-colors">
-                  Commuters
+                  Commuter Detour
                 </span>
               </div>
               <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/40">
-                Recommended
+                RECOMMENDED
               </span>
             </div>
             <div className="mt-1 flex items-center justify-between text-[10px] text-slate-300">
@@ -373,11 +389,11 @@ export const RightIntelligencePanel: React.FC = () => {
                   <Navigation className="w-3 h-3" />
                 </div>
                 <span className="font-bold text-white text-[11px] group-hover:text-rose-300 transition-colors">
-                  Traffic Authorities
+                  Traffic Diversion Advisory
                 </span>
               </div>
               <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-300 border border-rose-500/40">
-                Divert Traffic
+                DIVERT TRAFFIC
               </span>
             </div>
             <div className="mt-1 text-[10px] text-slate-300 font-mono">
@@ -390,7 +406,7 @@ export const RightIntelligencePanel: React.FC = () => {
           onClick={() => setActiveTab('route')}
           className="w-full mt-1 py-1.5 px-2 rounded-lg bg-[#142033] hover:bg-cyan-950 text-cyan-300 hover:text-cyan-200 border border-cyan-800/60 text-[10px] transition-all flex items-center justify-center gap-1.5 font-bold shadow"
         >
-          <span>Open Safe Route Analysis View</span>
+          <span>Open Road Risk & Routing View</span>
           <ArrowRight className="w-3 h-3" />
         </button>
       </section>

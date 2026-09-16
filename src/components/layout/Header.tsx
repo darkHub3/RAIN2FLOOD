@@ -47,7 +47,7 @@ export const Header: React.FC = () => {
     { id: 'dashboard', label: 'GIS Dashboard', icon: <LayoutDashboard className="w-4 h-4" /> },
     { id: 'drainage', label: 'Drainage Network', icon: <Network className="w-4 h-4" /> },
     { id: 'forecast', label: 'Forecast', icon: <TrendingUp className="w-4 h-4" /> },
-    { id: 'route', label: 'Safe Route', icon: <Route className="w-4 h-4" /> },
+    { id: 'route', label: 'Road Risk & Routing', icon: <Route className="w-4 h-4" /> },
     { id: 'howitworks', label: 'How It Works', icon: <HelpCircle className="w-4 h-4" /> },
   ];
 

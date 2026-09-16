@@ -7,7 +7,7 @@ import { NATURAL_WATERWAYS } from '../../data/naturalDrainage';
 import { TERRAIN_HILLS, FLOW_ACCUMULATION_VECTORS } from '../../data/terrainData';
 import { ROAD_SEGMENTS } from '../../data/roads';
 import { ROUTE_SCENARIOS } from '../../data/routes';
-import { DrainageNode, DrainageEdge } from '../../types';
+import { DrainageNode, DrainageEdge, RoadRiskState, RoadSegment } from '../../types';
 import { ZoomIn, ZoomOut, RotateCcw, Crosshair } from 'lucide-react';
 
 // Guwahati Bounding Box
@@ -36,6 +36,9 @@ export const FallbackSvgMap: React.FC<SvgMapProps> = ({ showRoutes = false }) =>
     setSelectedNode,
     selectedEdge,
     setSelectedEdge,
+    selectedRoad,
+    focusRoad,
+    roadRiskFilter,
     selectedRouteId,
     baseMapMode,
   } = useSimulation();
@@ -82,24 +85,27 @@ export const FallbackSvgMap: React.FC<SvgMapProps> = ({ showRoutes = false }) =>
   };
 
   const getFloodColor = (depth: number) => {
-    if (depth > 0.6) return 'rgba(220, 38, 38, 0.45)';
-    if (depth > 0.3) return 'rgba(249, 115, 22, 0.40)';
-    if (depth > 0.15) return 'rgba(245, 158, 11, 0.35)';
-    return 'rgba(6, 182, 212, 0.25)';
+    if (depth > 0.6) return 'rgba(239, 68, 68, 0.22)';
+    if (depth > 0.3) return 'rgba(249, 115, 22, 0.20)';
+    if (depth > 0.15) return 'rgba(234, 179, 8, 0.18)';
+    return 'rgba(6, 182, 212, 0.16)';
   };
 
   const getFloodStroke = (depth: number) => {
-    if (depth > 0.6) return '#ef4444';
-    if (depth > 0.3) return '#f97316';
-    if (depth > 0.15) return '#f59e0b';
-    return '#06b6d4';
+    if (depth > 0.6) return 'rgba(239, 68, 68, 0.55)';
+    if (depth > 0.3) return 'rgba(249, 115, 22, 0.50)';
+    if (depth > 0.15) return 'rgba(234, 179, 8, 0.45)';
+    return 'rgba(6, 182, 212, 0.40)';
   };
 
-  const getRoadColor = (status: string) => {
-    switch (status) {
-      case 'impassable': return '#ef4444';
-      case 'caution': return '#f59e0b';
-      default: return '#475569';
+  const getRoadRiskColor = (risk: RoadRiskState) => {
+    switch (risk) {
+      case 'BLOCKED': return '#ef4444';
+      case 'HIGH RISK': return '#f97316';
+      case 'MODERATE': return '#eab308';
+      case 'NORMAL':
+      default:
+        return '#10b981';
     }
   };
 
@@ -385,55 +391,7 @@ export const FallbackSvgMap: React.FC<SvgMapProps> = ({ showRoutes = false }) =>
           </g>
         )}
 
-        {/* --- 4. ROADS & RISK LAYER --- */}
-        {activeLayers.roadExposure && (
-          <g id="roads-layer">
-            {ROAD_SEGMENTS.map((road) => {
-              const rState = road.timesteps[activeTimeStep];
-              const pathStr = road.path
-                .map((coord, idx) => {
-                  const [px, py] = projectCoords(coord[0], coord[1]);
-                  return `${idx === 0 ? 'M' : 'L'} ${px} ${py}`;
-                })
-                .join(' ');
-
-              const color = getRoadColor(rState.status);
-              const isImpassable = rState.status === 'impassable';
-
-              return (
-                <g
-                  key={road.id}
-                  className="cursor-pointer"
-                  onMouseEnter={() =>
-                    setHoveredInfo(
-                      `Road: ${road.name} | Status: ${rState.status.toUpperCase()} | Depth: ${rState.waterDepthM}m`
-                    )
-                  }
-                  onMouseLeave={() => setHoveredInfo(null)}
-                >
-                  <path
-                    d={pathStr}
-                    fill="none"
-                    stroke="#1e293b"
-                    strokeWidth="6"
-                    strokeLinecap="round"
-                  />
-                  <path
-                    d={pathStr}
-                    fill="none"
-                    stroke={color}
-                    strokeWidth={isImpassable ? '3' : '2'}
-                    strokeDasharray={isImpassable ? '6 4' : undefined}
-                    strokeLinecap="round"
-                    className={isImpassable ? 'animate-pulse' : undefined}
-                  />
-                </g>
-              );
-            })}
-          </g>
-        )}
-
-        {/* --- 5. SIMULATED FLOOD DEPTH ZONES --- */}
+        {/* --- 4. SIMULATED FLOOD DEPTH ZONES (SUBTLE UNDER ROADS) --- */}
         {activeLayers.floodDepth && (
           <g id="flood-zones-layer">
             {FLOOD_ZONES.map((zone) => {
@@ -454,38 +412,128 @@ export const FallbackSvgMap: React.FC<SvgMapProps> = ({ showRoutes = false }) =>
                   }
                   onMouseLeave={() => setHoveredInfo(null)}
                 >
-                  {/* Outer glow ring for critical depth */}
-                  {zState.depthM > 0.6 && (
-                    <polygon
-                      points={pointsStr}
-                      fill="none"
-                      stroke="#ef4444"
-                      strokeWidth="4"
-                      strokeOpacity="0.4"
-                      className="animate-pulse"
-                    />
-                  )}
-                  {/* Flood Inundation Polygon */}
+                  {/* Subtle Inundation Polygon */}
                   <polygon
                     points={pointsStr}
                     fill={getFloodColor(zState.depthM)}
                     stroke={getFloodStroke(zState.depthM)}
-                    strokeWidth="1.5"
-                    strokeDasharray="4 2"
+                    strokeWidth="1.2"
                   />
                   {/* Center Depth Label */}
                   <text
                     x={cx}
                     y={cy}
                     textAnchor="middle"
-                    fill="#ffffff"
-                    fontSize="9"
+                    fill="#94a3b8"
+                    fontSize="8.5"
                     fontFamily="JetBrains Mono, monospace"
                     fontWeight="bold"
                     className="pointer-events-none drop-shadow"
                   >
                     {zState.depthM.toFixed(2)}m
                   </text>
+                </g>
+              );
+            })}
+          </g>
+        )}
+
+        {/* --- 5. ROADS & RISK LAYER (PRIMARY VISUAL LAYER) --- */}
+        {activeLayers.roadExposure && (
+          <g id="roads-layer">
+            {ROAD_SEGMENTS.map((road) => {
+              const rState = road.timesteps[activeTimeStep];
+              const risk = rState?.riskState || 'NORMAL';
+              const isMatch = roadRiskFilter === 'ALL' || risk === roadRiskFilter;
+              const opacity = isMatch ? 1 : 0.12;
+
+              const pathStr = road.path
+                .map((coord, idx) => {
+                  const [px, py] = projectCoords(coord[0], coord[1]);
+                  return `${idx === 0 ? 'M' : 'L'} ${px} ${py}`;
+                })
+                .join(' ');
+
+              const color = getRoadRiskColor(risk);
+              const isBlocked = risk === 'BLOCKED';
+              const isHigh = risk === 'HIGH RISK';
+              const isSelected = selectedRoad?.id === road.id;
+              const strokeWidth = isBlocked || isHigh ? 4.5 : risk === 'MODERATE' ? 3.5 : 2.5;
+
+              // Midpoint for barrier icon
+              const midIdx = Math.floor(road.path.length / 2);
+              const midCoord = road.path[midIdx];
+              const [bx, by] = projectCoords(midCoord[0], midCoord[1]);
+
+              return (
+                <g
+                  key={road.id}
+                  opacity={opacity}
+                  className="cursor-pointer transition-opacity duration-300"
+                  onClick={() => focusRoad(road)}
+                  onMouseEnter={() =>
+                    setHoveredInfo(
+                      `Road: ${road.name} | Risk: ${risk} | Depth: ${rState.waterDepthM.toFixed(2)}m${rState.drainageStressPct ? ` | Stress: ${rState.drainageStressPct}%` : ''}`
+                    )
+                  }
+                  onMouseLeave={() => setHoveredInfo(null)}
+                >
+                  {/* Selection Cyan Glow Outline */}
+                  {isSelected && (
+                    <path
+                      d={pathStr}
+                      fill="none"
+                      stroke="#06b6d4"
+                      strokeWidth={strokeWidth + 5}
+                      strokeOpacity="0.8"
+                      strokeLinecap="round"
+                      className="animate-pulse"
+                    />
+                  )}
+
+                  {/* Dark Base Line */}
+                  <path
+                    d={pathStr}
+                    fill="none"
+                    stroke="#0b101c"
+                    strokeWidth={strokeWidth + 2}
+                    strokeLinecap="round"
+                  />
+
+                  {/* Colored Road Risk Line */}
+                  <path
+                    d={pathStr}
+                    fill="none"
+                    stroke={color}
+                    strokeWidth={strokeWidth}
+                    strokeDasharray={isBlocked ? '8 6' : undefined}
+                    strokeLinecap="round"
+                    className={isBlocked ? 'animate-pulse' : undefined}
+                  />
+
+                  {/* Blocked Road Closure Barrier Badge at Midpoint */}
+                  {isBlocked && isMatch && (
+                    <g transform={`translate(${bx - 7}, ${by - 7})`} className="pointer-events-none">
+                      <rect
+                        width="14"
+                        height="14"
+                        rx="3"
+                        fill="#ef4444"
+                        stroke="#ffffff"
+                        strokeWidth="1"
+                      />
+                      <text
+                        x="7"
+                        y="10.5"
+                        textAnchor="middle"
+                        fontSize="9"
+                        fill="#ffffff"
+                        fontWeight="bold"
+                      >
+                        ⛔
+                      </text>
+                    </g>
+                  )}
                 </g>
               );
             })}

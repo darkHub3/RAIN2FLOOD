@@ -51,9 +51,14 @@ export const GisMap: React.FC<GisMapProps> = ({ showRoutes = true }) => {
     setSelectedRoad,
     selectedRouteId,
     targetLocation,
+    roadRiskFilter,
+    selectedHotspotId,
+    setSelectedHotspotId,
+    focusRoad,
   } = useSimulation();
 
   const activeRoute = ROUTE_SCENARIOS.find((r) => r.id === selectedRouteId) || ROUTE_SCENARIOS[0];
+  const activeHotspot = FLOOD_ZONES.find((z) => z.id === selectedHotspotId) || null;
 
   // 1. Initialize Leaflet Map Instance (React 18 StrictMode resistant)
   useEffect(() => {
@@ -190,290 +195,460 @@ export const GisMap: React.FC<GisMapProps> = ({ showRoutes = true }) => {
     overlayGroup.addLayer(riverMarker);
 
     // ==========================================
-    // B. MULTI-LAYER THERMAL GRADIENT FLOOD INUNDATION OVERLAY
-    // (Generates the smooth Blue -> Cyan -> Yellow -> Orange -> Red heatmap)
+    // B. SUBTLE SEMI-TRANSPARENT FLOOD-DEPTH POLYGONS (Subordinate to roads)
     // ==========================================
     const isFloodActive = activeLayers.predictedFloodZones !== false || activeLayers.waterDepth !== false || activeLayers.rainfallNowcast !== false;
 
     if (isFloodActive) {
-      // Define thermal gradient clusters for Guwahati's primary lowlands
-      const thermalClusters = [
-        { center: [26.1260, 91.8150], maxR: 1600, name: 'Khanapara Basin' },
-        { center: [26.1395, 91.7950], maxR: 1800, name: 'Rukminigaon / Down Town' },
-        { center: [26.1620, 91.7780], maxR: 1700, name: 'Zoo Road Corridor' },
-        { center: [26.1550, 91.7680], maxR: 1500, name: 'GS Road (Bhangagarh)' },
-        { center: [26.1730, 91.7720], maxR: 1400, name: 'Anil Nagar Lowland' },
-      ];
+      FLOOD_ZONES.forEach((zone) => {
+        const zState = zone.timesteps[activeTimeStep];
+        const depth = zState.depthM;
 
-      // Multiplier depending on timestep
-      const timeScale =
-        activeTimeStep === 'NOW'
-          ? 0.7
-          : activeTimeStep === '+1HR'
-          ? 0.9
-          : activeTimeStep === '+2HR'
-          ? 1.15
-          : 1.35;
+        // Visual encoding according to specification:
+        // 0–0.15 m = low
+        // 0.15–0.30 m = moderate
+        // 0.30–0.60 m = high
+        // >0.60 m = severe
+        let fillColor = '#06b6d4';
+        let strokeColor = '#0891b2';
+        let fillOpacity = 0.18;
+        let strokeWidth = 1;
 
-      thermalClusters.forEach((cluster) => {
-        const r = cluster.maxR * timeScale;
+        if (depth > 0.60) {
+          fillColor = '#ef4444';
+          strokeColor = '#dc2626';
+          fillOpacity = 0.28;
+          strokeWidth = 1.5;
+        } else if (depth > 0.30) {
+          fillColor = '#f97316';
+          strokeColor = '#ea580c';
+          fillOpacity = 0.25;
+          strokeWidth = 1.2;
+        } else if (depth > 0.15) {
+          fillColor = '#eab308';
+          strokeColor = '#ca8a04';
+          fillOpacity = 0.22;
+          strokeWidth = 1;
+        }
 
-        // Outer halo: Deep Blue / Cyan
-        const outerCircle = L.circle([cluster.center[0], cluster.center[1]], {
-          radius: r,
-          fillColor: '#0284c7',
-          fillOpacity: 0.38,
-          stroke: true,
-          color: '#38bdf8',
-          weight: 1,
-          opacity: 0.5,
-        });
-        overlayGroup.addLayer(outerCircle);
-
-        // Mid-outer: Bright Cyan / Sky
-        const midOuterCircle = L.circle([cluster.center[0], cluster.center[1]], {
-          radius: r * 0.75,
-          fillColor: '#06b6d4',
-          fillOpacity: 0.48,
-          stroke: false,
-        });
-        overlayGroup.addLayer(midOuterCircle);
-
-        // Mid: Yellow / Amber
-        const midCircle = L.circle([cluster.center[0], cluster.center[1]], {
-          radius: r * 0.55,
-          fillColor: '#eab308',
-          fillOpacity: 0.58,
-          stroke: false,
-        });
-        overlayGroup.addLayer(midCircle);
-
-        // Mid-inner: Orange
-        const innerCircle = L.circle([cluster.center[0], cluster.center[1]], {
-          radius: r * 0.38,
-          fillColor: '#f97316',
-          fillOpacity: 0.68,
-          stroke: false,
-        });
-        overlayGroup.addLayer(innerCircle);
-
-        // Epicenter Core: Red / Magenta
-        const coreCircle = L.circle([cluster.center[0], cluster.center[1]], {
-          radius: r * 0.22,
-          fillColor: '#ef4444',
-          fillOpacity: 0.78,
-          stroke: true,
-          color: '#dc2626',
-          weight: 1.5,
-          opacity: 0.8,
-        });
-        overlayGroup.addLayer(coreCircle);
-      });
-    }
-
-    // ==========================================
-    // C. HISTORICAL FLOOD HOTSPOT WARNING MARKERS (⚠️)
-    // ==========================================
-    if (activeLayers.historicalHotspots !== false) {
-      const hotspotsData = [
-        { name: 'Khanapara Crossing', lat: 26.1260, lng: 91.8150 },
-        { name: 'Zoo Road', lat: 26.1650, lng: 91.7830 },
-        { name: 'GS Road', lat: 26.1520, lng: 91.7760 },
-        { name: 'Rukminigaon', lat: 26.1395, lng: 91.7980 },
-        { name: 'Anil Nagar', lat: 26.1755, lng: 91.7725 },
-      ];
-
-      hotspotsData.forEach((spot) => {
-        const hazardIcon = L.divIcon({
-          className: 'hazard-pulse-marker',
-          html: `
-            <div style="position: relative; display: flex; align-items: center; justify-content: center;">
-              <span style="
-                position: absolute;
-                width: 24px;
-                height: 24px;
-                border-radius: 9999px;
-                background: rgba(239, 68, 68, 0.4);
-                animation: ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;
-              "></span>
-              <div style="
-                position: relative;
-                width: 22px;
-                height: 22px;
-                background: #ef4444;
-                border: 2px solid #ffffff;
-                border-radius: 6px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                box-shadow: 0 4px 12px rgba(0,0,0,0.6);
-                cursor: pointer;
-              ">
-                <span style="color: white; font-size: 12px; font-weight: bold; line-height: 1;">!</span>
-              </div>
-            </div>
-          `,
-          iconSize: [24, 24],
-          iconAnchor: [12, 12],
+        const latLngs: [number, number][] = zone.polygon.map((c) => [c[0], c[1]]);
+        const poly = L.polygon(latLngs, {
+          color: strokeColor,
+          weight: strokeWidth,
+          fillColor: fillColor,
+          fillOpacity: fillOpacity,
+          dashArray: depth > 0.60 ? '4, 4' : undefined,
         });
 
-        const marker = L.marker([spot.lat, spot.lng], { icon: hazardIcon });
-        marker.bindTooltip(
-          `<div class="font-sans text-xs"><strong>${spot.name}</strong><br/><span class="text-rose-400">High Risk Flood Hotspot</span></div>`,
+        poly.bindTooltip(
+          `<div class="font-sans text-xs">
+            <strong>${zone.name}</strong><br/>
+            Simulated Flood Depth: <span class="text-cyan-300 font-bold">${depth.toFixed(2)} m</span> (${zState.risk.toUpperCase()})<br/>
+            <span class="text-slate-400 text-[10px]">${zState.primaryBottleneck}</span>
+          </div>`,
           { sticky: true, className: 'leaflet-dark-tooltip' }
         );
-        overlayGroup.addLayer(marker);
-      });
-    }
 
-    // ==========================================
-    // D. ROAD NETWORK (AFFECTED RED CORRIDOR & SAFE GREEN ROUTE)
-    // ==========================================
-    if (activeLayers.roadNetwork !== false) {
-      // 1. Red Affected Corridor (traversing through Khanapara & GS Road)
-      const affectedPath: [number, number][] = [
-        [26.1210, 91.8220],
-        [26.1260, 91.8150],
-        [26.1320, 91.8110],
-        [26.1390, 91.7990],
-        [26.1480, 91.7875],
-        [26.1585, 91.7685],
-      ];
-
-      const affectedLine = L.polyline(affectedPath, {
-        color: '#ef4444',
-        weight: 5,
-        opacity: 0.95,
-      });
-      overlayGroup.addLayer(affectedLine);
-
-      // Red No-Entry Barrier Icons (⛔) on affected road
-      const barrierIcon = L.divIcon({
-        className: 'barrier-marker',
-        html: `
-          <div style="
-            width: 18px;
-            height: 18px;
-            border-radius: 50%;
-            background: #dc2626;
-            border: 2px solid white;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.8);
-          ">
-            <span style="width: 10px; height: 2.5px; background: white; border-radius: 1px;"></span>
-          </div>
-        `,
-        iconSize: [18, 18],
-        iconAnchor: [9, 9],
-      });
-
-      overlayGroup.addLayer(L.marker([26.1260, 91.8150], { icon: barrierIcon }));
-      overlayGroup.addLayer(L.marker([26.1390, 91.7990], { icon: barrierIcon }));
-
-      // Bus transit icon on Khanapara road
-      const busIcon = L.divIcon({
-        className: 'bus-transit-marker',
-        html: `
-          <div style="
-            width: 22px;
-            height: 22px;
-            border-radius: 50%;
-            background: #0284c7;
-            border: 2px solid white;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.8);
-          ">
-            <span style="color: white; font-size: 11px;">🚏</span>
-          </div>
-        `,
-        iconSize: [22, 22],
-        iconAnchor: [11, 11],
-      });
-      overlayGroup.addLayer(L.marker([26.1340, 91.8080], { icon: busIcon }));
-
-      // 2. Green Safe Alternative Route (Elevated ridge bypass corridor)
-      const safePath: [number, number][] = [
-        [26.1180, 91.8220],
-        [26.1320, 91.8110],
-        [26.1410, 91.8190],
-        [26.1550, 91.8150],
-        [26.1750, 91.8020],
-        [26.1880, 91.7745],
-      ];
-
-      const safeLine = L.polyline(safePath, {
-        color: '#10b981',
-        weight: 5,
-        opacity: 0.95,
-      });
-      overlayGroup.addLayer(safeLine);
-
-      // Base network lines for surrounding streets
-      ROAD_SEGMENTS.forEach((road) => {
-        const latLngs: [number, number][] = road.path.map((c) => [c[0], c[1]]);
-        const baseRoad = L.polyline(latLngs, {
-          color: '#64748b',
-          weight: 2,
-          opacity: 0.5,
+        poly.on('click', () => {
+          setSelectedHotspotId(zone.id);
         });
-        overlayGroup.addLayer(baseRoad);
+
+        overlayGroup.addLayer(poly);
       });
     }
 
     // ==========================================
-    // E. DRAINAGE NETWORK (CONDUITS & NODES)
+    // C. DRAINAGE NETWORK (CONDUITS & NODES)
     // ==========================================
     if (activeLayers.drainageNetwork !== false) {
       // Conduits
-      DRAINAGE_EDGES.slice(0, 32).forEach((edge) => {
+      DRAINAGE_EDGES.slice(0, 36).forEach((edge) => {
         const from = DRAINAGE_NODES.find((n) => n.id === edge.fromNode);
         const to = DRAINAGE_NODES.find((n) => n.id === edge.toNode);
         if (!from || !to) return;
 
+        const isOverloaded = edge.timesteps[activeTimeStep].flowM3s > edge.designCapacityM3s;
         const conduitLine = L.polyline(
           [
             [from.lat, from.lng],
             [to.lat, to.lng],
           ],
           {
-            color: '#38bdf8',
-            weight: 2,
-            opacity: 0.7,
+            color: isOverloaded ? '#f43f5e' : '#38bdf8',
+            weight: isOverloaded ? 2.5 : 1.8,
+            opacity: 0.65,
             dashArray: '4, 4',
           }
         );
+        conduitLine.bindTooltip(
+          `<div class="font-sans text-xs">
+            <strong>${edge.id}: ${edge.name}</strong><br/>
+            Flow: ${edge.timesteps[activeTimeStep].flowM3s.toFixed(1)} / ${edge.designCapacityM3s.toFixed(1)} m³/s (${edge.timesteps[activeTimeStep].utilizationPct}%)
+          </div>`,
+          { sticky: true, className: 'leaflet-dark-tooltip' }
+        );
+        conduitLine.on('click', () => setSelectedEdge(edge));
         overlayGroup.addLayer(conduitLine);
       });
 
       // Manholes (green rings) & Outfalls (purple rings)
       DRAINAGE_NODES.slice(0, 24).forEach((node) => {
         const isOutfall = node.type === 'outfall';
+        const isSurcharged = node.timesteps[activeTimeStep].status === 'surcharged' || node.timesteps[activeTimeStep].status === 'critical';
         const circle = L.circleMarker([node.lat, node.lng], {
-          radius: isOutfall ? 5.5 : 4,
-          color: isOutfall ? '#c084fc' : '#34d399',
-          weight: 2,
+          radius: isOutfall ? 5 : isSurcharged ? 5 : 3.5,
+          color: isOutfall ? '#c084fc' : isSurcharged ? '#ef4444' : '#34d399',
+          weight: 1.5,
           fillColor: '#090e18',
           fillOpacity: 0.9,
         });
+        circle.bindTooltip(
+          `<div class="font-sans text-xs">
+            <strong>${node.id}: ${node.name}</strong> (${node.type})<br/>
+            Utilization: ${node.timesteps[activeTimeStep].utilizationPct}% | Inflow: ${node.timesteps[activeTimeStep].incomingFlowM3s.toFixed(1)} m³/s
+          </div>`,
+          { sticky: true, className: 'leaflet-dark-tooltip' }
+        );
+        circle.on('click', () => setSelectedNode(node));
         overlayGroup.addLayer(circle);
       });
     }
 
     // ==========================================
-    // F. ON-MAP GEOGRAPHIC LABELS (AS IN REFERENCE)
+    // D. ROAD RISK (PRIMARY MAP LAYER)
+    // ==========================================
+    if (activeLayers.roadNetwork !== false) {
+      ROAD_SEGMENTS.forEach((road) => {
+        const rState = road.timesteps[activeTimeStep];
+        const riskState = rState.riskState;
+        const isDimmed = roadRiskFilter !== 'ALL' && riskState !== roadRiskFilter;
+        const isSelected = selectedRoad?.id === road.id;
+
+        // Visual states:
+        // NORMAL = muted green
+        // MODERATE = yellow
+        // HIGH RISK = orange (thicker than normal)
+        // BLOCKED = red (thicker, dashed, closure icon)
+        let color = '#22c55e';
+        let weight = 3.5;
+        let opacity = isDimmed ? 0.12 : 0.85;
+        let dashArray: string | undefined = undefined;
+
+        if (riskState === 'BLOCKED') {
+          color = '#ef4444';
+          weight = 6.5;
+          opacity = isDimmed ? 0.15 : 1.0;
+          dashArray = '8, 6';
+        } else if (riskState === 'HIGH RISK') {
+          color = '#f97316';
+          weight = 5.5;
+          opacity = isDimmed ? 0.15 : 0.95;
+        } else if (riskState === 'MODERATE') {
+          color = '#eab308';
+          weight = 4.5;
+          opacity = isDimmed ? 0.15 : 0.95;
+        } else {
+          // NORMAL
+          color = '#22c55e';
+          weight = 3.5;
+          opacity = isDimmed ? 0.12 : 0.85;
+        }
+
+        const latLngs: [number, number][] = road.path.map((c) => [c[0], c[1]]);
+
+        // If selected: Draw bright cyan glow line underneath
+        if (isSelected) {
+          const glowLine = L.polyline(latLngs, {
+            color: '#38bdf8',
+            weight: 12,
+            opacity: 0.85,
+            lineCap: 'round',
+          });
+          overlayGroup.addLayer(glowLine);
+        }
+
+        const roadLine = L.polyline(latLngs, {
+          color: isDimmed ? '#475569' : color,
+          weight: isDimmed ? 2 : weight,
+          opacity: opacity,
+          dashArray: isDimmed ? undefined : dashArray,
+          lineCap: 'round',
+        });
+
+        roadLine.bindTooltip(
+          `<div class="font-sans text-xs">
+            <strong class="text-white">${road.name}</strong><br/>
+            Risk State: <span style="font-weight:bold; color: ${
+              riskState === 'BLOCKED'
+                ? '#ef4444'
+                : riskState === 'HIGH RISK'
+                ? '#f97316'
+                : riskState === 'MODERATE'
+                ? '#eab308'
+                : '#22c55e'
+            };">${riskState}</span><br/>
+            Flood Depth: <span class="font-mono text-cyan-300 font-semibold">${rState.waterDepthM.toFixed(2)} m</span><br/>
+            Drainage Stress: <span class="font-mono text-slate-300">${rState.drainageStressPct || 100}%</span>
+            ${rState.timeToCritical ? `<br/><span class="text-rose-400 font-mono text-[10px]">Time to critical: ${rState.timeToCritical}</span>` : ''}
+          </div>`,
+          { sticky: true, className: 'leaflet-dark-tooltip' }
+        );
+
+        roadLine.on('click', () => {
+          focusRoad(road);
+        });
+
+        overlayGroup.addLayer(roadLine);
+
+        // For BLOCKED roads that are not dimmed: render small closure barrier icon ⛔ at midpoint
+        if (riskState === 'BLOCKED' && !isDimmed && road.path.length > 0) {
+          const midIdx = Math.floor(road.path.length / 2);
+          const midCoord = road.path[midIdx];
+          const barrierIcon = L.divIcon({
+            className: 'barrier-marker',
+            html: `
+              <div style="
+                width: 20px;
+                height: 20px;
+                border-radius: 50%;
+                background: #dc2626;
+                border: 2px solid #ffffff;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.85);
+                cursor: pointer;
+              " title="${road.name} - BLOCKED">
+                <span style="width: 10px; height: 3px; background: white; border-radius: 1px;"></span>
+              </div>
+            `,
+            iconSize: [20, 20],
+            iconAnchor: [10, 10],
+          });
+          const barrierMarker = L.marker(midCoord, { icon: barrierIcon });
+          barrierMarker.on('click', () => focusRoad(road));
+          overlayGroup.addLayer(barrierMarker);
+        }
+      });
+    }
+
+    // ==========================================
+    // E. ROUTES (NORMAL MUTED/RED & ALTERNATIVE CYAN/GREEN)
+    // ==========================================
+    if (showRoutes && activeRoute) {
+      // 1. Normal Route (Muted / Red route, traverses through inundated corridors)
+      if (activeRoute.normalRoute.path.length > 0) {
+        const normalLine = L.polyline(activeRoute.normalRoute.path, {
+          color: '#ef4444',
+          weight: 4.5,
+          opacity: 0.75,
+          dashArray: '8, 6',
+        });
+        normalLine.bindTooltip(
+          `<div class="font-sans text-xs">
+            <strong class="text-rose-400">Normal Route</strong>: ${activeRoute.normalRoute.distanceKm} km<br/>
+            Flood Exposure: <span class="font-bold text-rose-300">HIGH</span><br/>
+            Max Depth: ${activeRoute.normalRoute.maxDepthM} m (${activeRoute.normalRoute.blockedSegmentsCount || 3} Blocked Segments)
+          </div>`,
+          { sticky: true, className: 'leaflet-dark-tooltip' }
+        );
+        overlayGroup.addLayer(normalLine);
+
+        // Prominent Route Blocked Callout Marker along normal path
+        const blockedMidIdx = Math.floor(activeRoute.normalRoute.path.length / 2);
+        const blockedCoord = activeRoute.normalRoute.path[blockedMidIdx];
+        const routeBlockedIcon = L.divIcon({
+          className: 'route-blocked-callout',
+          html: `
+            <div style="
+              background: rgba(15, 23, 42, 0.95);
+              border: 1.5px solid #ef4444;
+              border-radius: 8px;
+              padding: 3px 8px;
+              color: #fca5a5;
+              font-family: 'Inter', sans-serif;
+              font-size: 10px;
+              font-weight: 700;
+              letter-spacing: 0.5px;
+              box-shadow: 0 4px 14px rgba(0,0,0,0.8);
+              display: flex;
+              align-items: center;
+              gap: 5px;
+              white-space: nowrap;
+              pointer-events: none;
+            ">
+              <span style="color: #ef4444; font-size: 12px;">⛔</span>
+              <span>ROUTE BLOCKED BY SIMULATED FLOOD RISK</span>
+            </div>
+          `,
+          iconSize: [250, 26],
+          iconAnchor: [125, 13],
+        });
+        overlayGroup.addLayer(L.marker(blockedCoord, { icon: routeBlockedIcon }));
+      }
+
+      // 2. Alternative Route (Bright cyan/green lower-exposure route)
+      if (activeRoute.safeRoute.path.length > 0) {
+        const safeLine = L.polyline(activeRoute.safeRoute.path, {
+          color: '#10b981',
+          weight: 5.5,
+          opacity: 0.95,
+        });
+        safeLine.bindTooltip(
+          `<div class="font-sans text-xs">
+            <strong class="text-emerald-400">Lower-Exposure Alternative</strong>: ${activeRoute.safeRoute.distanceKm} km<br/>
+            Flood Exposure: <span class="font-bold text-emerald-300">LOW</span><br/>
+            Max Depth: ${activeRoute.safeRoute.maxDepthM} m (0 Blocked Segments)
+          </div>`,
+          { sticky: true, className: 'leaflet-dark-tooltip' }
+        );
+        overlayGroup.addLayer(safeLine);
+
+        // Lower simulated flood exposure pill along alternative path
+        const altMidIdx = Math.floor(activeRoute.safeRoute.path.length / 2);
+        const altCoord = activeRoute.safeRoute.path[altMidIdx];
+        const altPillIcon = L.divIcon({
+          className: 'route-alt-callout',
+          html: `
+            <div style="
+              background: rgba(6, 78, 59, 0.95);
+              border: 1.5px solid #10b981;
+              border-radius: 8px;
+              padding: 3px 8px;
+              color: #a7f3d0;
+              font-family: 'Inter', sans-serif;
+              font-size: 10px;
+              font-weight: 700;
+              box-shadow: 0 4px 14px rgba(0,0,0,0.8);
+              display: flex;
+              align-items: center;
+              gap: 5px;
+              white-space: nowrap;
+              pointer-events: none;
+            ">
+              <span style="color: #34d399; font-size: 11px;">✓</span>
+              <span>LOWER SIMULATED FLOOD EXPOSURE</span>
+            </div>
+          `,
+          iconSize: [220, 26],
+          iconAnchor: [110, 13],
+        });
+        overlayGroup.addLayer(L.marker(altCoord, { icon: altPillIcon }));
+      }
+
+      // Origin & Destination pin markers
+      const originIcon = L.divIcon({
+        className: 'route-pin-origin',
+        html: `
+          <div style="
+            background: #0284c7;
+            color: white;
+            font-size: 10px;
+            font-weight: bold;
+            padding: 2px 6px;
+            border-radius: 6px;
+            border: 1.5px solid white;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.8);
+            white-space: nowrap;
+          ">
+            ● ${activeRoute.origin}
+          </div>
+        `,
+        iconSize: [110, 24],
+        iconAnchor: [55, 12],
+      });
+      overlayGroup.addLayer(L.marker(activeRoute.originCoords, { icon: originIcon }));
+
+      const destIcon = L.divIcon({
+        className: 'route-pin-dest',
+        html: `
+          <div style="
+            background: #059669;
+            color: white;
+            font-size: 10px;
+            font-weight: bold;
+            padding: 2px 6px;
+            border-radius: 6px;
+            border: 1.5px solid white;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.8);
+            white-space: nowrap;
+          ">
+            ★ ${activeRoute.destination}
+          </div>
+        `,
+        iconSize: [110, 24],
+        iconAnchor: [55, 12],
+      });
+      overlayGroup.addLayer(L.marker(activeRoute.destCoords, { icon: destIcon }));
+    }
+
+    // ==========================================
+    // F. SMALL HISTORICAL FLOOD HOTSPOT WARNING MARKERS (⚠️)
+    // ==========================================
+    if (activeLayers.historicalHotspots !== false) {
+      const hotspotsData = [
+        { id: 'FZ-01', name: 'Anil Nagar', lat: 26.1755, lng: 91.7725 },
+        { id: 'FZ-02', name: 'GS Road (Bhangagarh)', lat: 26.1575, lng: 91.7710 },
+        { id: 'FZ-03', name: 'Zoo Road', lat: 26.1650, lng: 91.7830 },
+        { id: 'FZ-04', name: 'Rukminigaon', lat: 26.1395, lng: 91.8000 },
+        { id: 'FZ-05', name: 'Hatigaon - Bhetapara', lat: 26.1340, lng: 91.7790 },
+        { id: 'FZ-06', name: 'Bharalumukh', lat: 26.1735, lng: 91.7265 },
+        { id: 'FZ-07', name: 'Ulubari', lat: 26.1695, lng: 91.7610 },
+        { id: 'FZ-08', name: 'Boragaon Bypass', lat: 26.1350, lng: 91.7080 },
+        { id: 'FZ-09', name: 'Khanapara Basin', lat: 26.1260, lng: 91.8150 },
+      ];
+
+      hotspotsData.forEach((spot) => {
+        const hazardIcon = L.divIcon({
+          className: 'hazard-hotspot-marker',
+          html: `
+            <div style="
+              position: relative;
+              width: 22px;
+              height: 22px;
+              background: #ef4444;
+              border: 2px solid #ffffff;
+              border-radius: 6px;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              box-shadow: 0 3px 10px rgba(0,0,0,0.7);
+              cursor: pointer;
+              transition: transform 0.2s;
+            ">
+              <span style="color: white; font-size: 11px; font-weight: 900; line-height: 1;">⚠</span>
+            </div>
+          `,
+          iconSize: [22, 22],
+          iconAnchor: [11, 11],
+        });
+
+        const marker = L.marker([spot.lat, spot.lng], { icon: hazardIcon });
+        marker.bindTooltip(
+          `<div class="font-sans text-xs">
+            <strong>${spot.name}</strong><br/>
+            <span class="text-amber-400 font-semibold">Flood Hotspot (Click to inspect)</span>
+          </div>`,
+          { sticky: true, className: 'leaflet-dark-tooltip' }
+        );
+        marker.on('click', () => {
+          setSelectedHotspotId(spot.id);
+        });
+        overlayGroup.addLayer(marker);
+      });
+    }
+
+    // ==========================================
+    // G. ON-MAP GEOGRAPHIC LABELS
     // ==========================================
     const labelLocations = [
-      { text: 'Khanapara', coords: [26.1280, 91.8150], anchor: [30, 20] },
-      { text: 'Zoo Road', coords: [26.1680, 91.7820], anchor: [30, 20] },
-      { text: 'GS Road →', coords: [26.1480, 91.7760], anchor: [30, 20] },
-      { text: 'Rukminigaon →', coords: [26.1360, 91.7910], anchor: [40, 20] },
-      { text: 'Jalukbari →', coords: [26.1310, 91.7450], anchor: [30, 20] },
-      { text: 'Dispur', coords: [26.1420, 91.8020], anchor: [20, 20] },
-      { text: 'Guwahati →', coords: [26.1150, 91.7650], anchor: [30, 20] },
+      { text: 'Khanapara', coords: [26.1280, 91.8150] },
+      { text: 'Zoo Road', coords: [26.1680, 91.7820] },
+      { text: 'GS Road →', coords: [26.1480, 91.7760] },
+      { text: 'Rukminigaon →', coords: [26.1360, 91.7910] },
+      { text: 'Jalukbari →', coords: [26.1310, 91.7450] },
+      { text: 'Dispur', coords: [26.1420, 91.8020] },
+      { text: 'Guwahati →', coords: [26.1150, 91.7650] },
     ];
 
     labelLocations.forEach((lbl) => {
@@ -488,6 +663,7 @@ export const GisMap: React.FC<GisMapProps> = ({ showRoutes = true }) => {
             text-shadow: 0 0 6px #000, 0 1px 3px #000;
             white-space: nowrap;
             pointer-events: none;
+            opacity: 0.85;
           ">
             ${lbl.text}
           </div>
@@ -496,7 +672,16 @@ export const GisMap: React.FC<GisMapProps> = ({ showRoutes = true }) => {
       });
       overlayGroup.addLayer(L.marker(lbl.coords as [number, number], { icon: lblIcon }));
     });
-  }, [activeTimeStep, activeLayers, baseMapMode]);
+  }, [
+    activeTimeStep,
+    activeLayers,
+    baseMapMode,
+    roadRiskFilter,
+    selectedRoad,
+    selectedRouteId,
+    showRoutes,
+    selectedHotspotId,
+  ]);
 
   // Controls
   const handleZoomIn = () => mapInstanceRef.current?.zoomIn();
@@ -593,25 +778,153 @@ export const GisMap: React.FC<GisMapProps> = ({ showRoutes = true }) => {
         )}
       </div>
 
-      {/* 3. FLOATING PINNED CALLOUT: KHANAPARA CROSSING (ON MAP) */}
-      {!isKhanaparaCardDismissed && (
-        <div className="absolute top-16 sm:top-28 left-2 sm:left-20 lg:left-36 z-[1000] pointer-events-auto max-w-[calc(100%-1rem)] sm:max-w-[270px] animate-fadeIn">
+      {/* 3. FLOATING INSPECTORS (COMPACT ROAD & HOTSPOT CARDS) */}
+      {selectedRoad ? (
+        <div className="absolute top-16 sm:top-24 left-2 sm:left-4 z-[1000] pointer-events-auto max-w-[calc(100%-1rem)] sm:max-w-[280px] animate-fadeIn">
+          <div className="bg-[#0b1322]/95 backdrop-blur-md border border-cyan-500/50 rounded-xl p-3 shadow-2xl text-xs space-y-2 relative">
+            {/* Header */}
+            <div className="flex items-start justify-between gap-2 border-b border-slate-700/60 pb-1.5">
+              <div>
+                <div className="text-[9px] font-mono text-cyan-400 font-bold uppercase tracking-wider">
+                  ROAD INSPECTOR
+                </div>
+                <div className="font-bold text-white text-xs sm:text-[13px] leading-tight mt-0.5">
+                  {selectedRoad.name}
+                </div>
+              </div>
+              <button
+                onClick={() => setSelectedRoad(null)}
+                className="text-slate-400 hover:text-white p-0.5 text-xs"
+                title="Close road inspector"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Metrics Breakdown */}
+            <div className="space-y-1 text-[11px] font-mono text-slate-300">
+              <div className="flex justify-between items-center">
+                <span className="text-slate-400">ROAD:</span>
+                <span className="text-white font-medium truncate max-w-[170px]">{selectedRoad.name}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-slate-400">Risk:</span>
+                <strong className={`font-bold px-1.5 py-0.2 rounded text-[10px] ${
+                  selectedRoad.timesteps[activeTimeStep].riskState === 'BLOCKED'
+                    ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40'
+                    : selectedRoad.timesteps[activeTimeStep].riskState === 'HIGH RISK'
+                    ? 'bg-orange-500/20 text-orange-300 border border-orange-500/40'
+                    : selectedRoad.timesteps[activeTimeStep].riskState === 'MODERATE'
+                    ? 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/40'
+                    : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                }`}>
+                  {selectedRoad.timesteps[activeTimeStep].riskState}
+                </strong>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-slate-400">Flood depth:</span>
+                <strong className="text-cyan-300">{selectedRoad.timesteps[activeTimeStep].waterDepthM.toFixed(2)} m</strong>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-slate-400">Drainage stress:</span>
+                <strong className="text-white">{selectedRoad.timesteps[activeTimeStep].drainageStressPct || 100}%</strong>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-slate-400">Scenario:</span>
+                <span className="text-amber-300 font-bold">{activeTimeStep}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-slate-400">Road status:</span>
+                <span className="font-bold text-slate-200">{selectedRoad.timesteps[activeTimeStep].riskState}</span>
+              </div>
+            </div>
+
+            {/* Action button */}
+            <button
+              onClick={() => {
+                if (selectedRoad.path && selectedRoad.path.length > 0) {
+                  const mid = selectedRoad.path[Math.floor(selectedRoad.path.length / 2)];
+                  mapInstanceRef.current?.flyTo([mid[0], mid[1]], 15.5, { duration: 0.8 });
+                }
+              }}
+              className="w-full py-1.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white font-mono text-[11px] font-bold shadow transition-colors flex items-center justify-center gap-1.5"
+            >
+              <span>VIEW ON MAP</span>
+            </button>
+          </div>
+        </div>
+      ) : activeHotspot ? (
+        <div className="absolute top-16 sm:top-24 left-2 sm:left-4 z-[1000] pointer-events-auto max-w-[calc(100%-1rem)] sm:max-w-[280px] animate-fadeIn">
+          <div className="bg-[#0b1322]/95 backdrop-blur-md border border-amber-500/50 rounded-xl p-3 shadow-2xl text-xs space-y-2 relative">
+            <div className="flex items-start justify-between gap-2 border-b border-slate-700/60 pb-1.5">
+              <div className="flex items-center gap-1.5">
+                <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
+                <div>
+                  <div className="text-[9px] font-mono text-amber-400 font-bold uppercase tracking-wider">
+                    HOTSPOT INSPECTOR
+                  </div>
+                  <div className="font-bold text-white text-xs sm:text-[13px] leading-tight">
+                    {activeHotspot.name}
+                  </div>
+                </div>
+              </div>
+              <button
+                onClick={() => setSelectedHotspotId(null)}
+                className="text-slate-400 hover:text-white p-0.5 text-xs"
+                title="Close hotspot inspector"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-1 text-[11px] font-mono text-slate-300">
+              <div className="flex justify-between items-center">
+                <span className="text-slate-400">Severity:</span>
+                <span className="font-bold text-amber-400 uppercase">{activeHotspot.timesteps[activeTimeStep].risk}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-slate-400">Simulated Depth:</span>
+                <strong className="text-cyan-300">{activeHotspot.timesteps[activeTimeStep].depthM.toFixed(2)} m</strong>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-slate-400">Affected Area:</span>
+                <strong className="text-white">{activeHotspot.timesteps[activeTimeStep].affectedAreaHa} ha</strong>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-slate-400">Scenario:</span>
+                <span className="text-cyan-400 font-bold">{activeTimeStep}</span>
+              </div>
+              <div className="text-[10px] text-slate-300 pt-1 border-t border-slate-800">
+                <span className="text-slate-400">Bottleneck: </span>
+                {activeHotspot.timesteps[activeTimeStep].primaryBottleneck}
+              </div>
+            </div>
+
+            <button
+              onClick={() => {
+                mapInstanceRef.current?.flyTo([activeHotspot.center[0], activeHotspot.center[1]], 15.5, { duration: 0.8 });
+              }}
+              className="w-full py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-cyan-300 font-mono text-[11px] font-bold shadow transition-colors flex items-center justify-center gap-1.5"
+            >
+              <span>VIEW ON MAP</span>
+            </button>
+          </div>
+        </div>
+      ) : !isKhanaparaCardDismissed ? (
+        <div className="absolute top-16 sm:top-24 left-2 sm:left-4 z-[1000] pointer-events-auto max-w-[calc(100%-1rem)] sm:max-w-[270px] animate-fadeIn">
           <div className="bg-[#0b1322]/95 backdrop-blur-md border border-rose-500/50 rounded-xl p-2.5 sm:p-3 shadow-2xl text-xs space-y-1.5 sm:space-y-2 relative">
-            {/* Header with Hazard Icon */}
             <div className="flex items-start gap-2">
               <div className="w-5 h-5 rounded bg-rose-500/20 border border-rose-500/50 flex items-center justify-center text-rose-400 shrink-0 mt-0.5">
                 <AlertTriangle className="w-3.5 h-3.5 fill-rose-500/30" />
               </div>
-
               <div>
                 <div className="font-bold text-white text-xs sm:text-[13px] leading-tight">
                   Khanapara Crossing
                 </div>
                 <div className="text-[9px] sm:text-[10px] font-semibold text-rose-400 uppercase tracking-wider">
-                  High Risk Zone
+                  {ROAD_SEGMENTS[0].timesteps[activeTimeStep].riskState}
                 </div>
               </div>
-
               <button
                 onClick={() => setIsKhanaparaCardDismissed(true)}
                 className="ml-auto text-slate-500 hover:text-white text-xs p-0.5"
@@ -621,29 +934,31 @@ export const GisMap: React.FC<GisMapProps> = ({ showRoutes = true }) => {
               </button>
             </div>
 
-            {/* Metrics */}
-            <div className="space-y-0.5 sm:space-y-1 text-[10px] sm:text-[11px] text-slate-300 pt-1 border-t border-slate-800">
+            <div className="space-y-0.5 sm:space-y-1 text-[10px] sm:text-[11px] text-slate-300 pt-1 border-t border-slate-800 font-mono">
               <div className="flex justify-between items-center">
-                <span className="text-slate-400">Water Depth:</span>
-                <strong className="text-white font-mono">60 – 100 cm</strong>
+                <span className="text-slate-400">Estimated Depth:</span>
+                <strong className="text-white">{ROAD_SEGMENTS[0].timesteps[activeTimeStep].waterDepthM.toFixed(2)} m</strong>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-slate-400">Time to Flood:</span>
-                <strong className="text-rose-400 font-mono flex items-center gap-1">
+                <span className="text-slate-400">Time to Critical:</span>
+                <strong className="text-rose-400 flex items-center gap-1">
                   <Clock className="w-3 h-3" />
-                  48 min
+                  {ROAD_SEGMENTS[0].timesteps[activeTimeStep].timeToCritical}
                 </strong>
               </div>
             </div>
 
-            {/* Warning Pill Alert */}
-            <div className="p-1 sm:p-1.5 rounded-lg bg-rose-950/60 border border-rose-500/40 text-[9px] sm:text-[10px] text-rose-200 flex items-center gap-1.5 font-medium">
-              <AlertTriangle className="w-3.5 h-3.5 text-rose-400 shrink-0" />
-              <span>Will become a risk zone in 48 min</span>
-            </div>
+            <button
+              onClick={() => {
+                focusRoad(ROAD_SEGMENTS[0]);
+              }}
+              className="w-full py-1 rounded bg-rose-950/60 hover:bg-rose-900/80 border border-rose-500/40 text-[10px] text-rose-200 font-mono font-bold flex items-center justify-center gap-1"
+            >
+              <span>INSPECT ROAD</span>
+            </button>
           </div>
         </div>
-      )}
+      ) : null}
 
       {/* 4. FLOATING MAP NAVIGATION CONTROLS (BOTTOM-RIGHT) */}
       <div className="absolute bottom-20 sm:bottom-16 right-2 sm:right-4 z-[1000] flex flex-col gap-1 sm:gap-1.5 pointer-events-auto">

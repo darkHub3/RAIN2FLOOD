@@ -61,10 +61,15 @@ export interface FloodZone {
   timesteps: Record<TimeStep, FloodZoneTimestepState>;
 }
 
+export type RoadRiskState = 'NORMAL' | 'MODERATE' | 'HIGH RISK' | 'BLOCKED';
+
 export interface RoadTimestepState {
+  riskState: RoadRiskState;
   status: 'clear' | 'caution' | 'impassable';
   waterDepthM: number;
   risk: FloodRisk;
+  drainageStressPct?: number;
+  timeToCritical?: string;
 }
 
 export interface RoadSegment {
@@ -72,6 +77,7 @@ export interface RoadSegment {
   name: string;
   path: [number, number][];
   timesteps: Record<TimeStep, RoadTimestepState>;
+  description?: string;
 }
 
 export interface NaturalWaterway {
@@ -92,6 +98,7 @@ export interface RouteDetail {
   maxDepthM: number;
   status: string;
   notes: string;
+  blockedSegmentsCount?: number;
   floodedSegments?: string[];
   elevationAdvantageM?: number;
 }
