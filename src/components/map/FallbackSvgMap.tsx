@@ -161,6 +161,7 @@ export const FallbackSvgMap: React.FC<SvgMapProps> = () => {
                 </div>
                 <div className="space-y-1 font-mono text-[11px] text-slate-300">
                   <div className="font-bold text-white text-xs">{selectedRoad.name}</div>
+                  <div className="text-[10px] text-cyan-300">Edge: {selectedRoad.id} {selectedRoad.from && selectedRoad.to ? `(${selectedRoad.from} → ${selectedRoad.to})` : ''}</div>
                   <div>Status: <span className="text-red-400 font-bold">{isBlocked ? 'SIMULATED BLOCKED CONDITION' : rState.riskState}</span></div>
                   <div>Simulated Depth: <span className="text-cyan-300">{rState.waterDepthM.toFixed(2)} m</span></div>
                   <div>Drainage Stress: <span className="text-white">{rState.drainageStressPct || 85}%</span></div>
@@ -369,12 +370,23 @@ export const FallbackSvgMap: React.FC<SvgMapProps> = () => {
             opacity = isFloodDrainageMode ? 0.20 : isFiltered ? 0.18 : 0.92;
           }
 
-          const pointsStr = road.path
+          const coords = (road.path && road.path.length > 0) ? road.path : road.geometry;
+          if (!coords || coords.length === 0) return null;
+
+          const pointsStr = coords
             .map((c) => {
-              const [x, y] = projectCoords(c[0], c[1]);
+              const lat = c[0] > 70 ? c[1] : c[0];
+              const lng = c[0] > 70 ? c[0] : c[1];
+              const [x, y] = projectCoords(lat, lng);
               return `${x},${y}`;
             })
             .join(' ');
+
+          const midIdx = Math.floor(coords.length / 2);
+          const midPt = coords[midIdx];
+          const midLat = midPt[0] > 70 ? midPt[1] : midPt[0];
+          const midLng = midPt[0] > 70 ? midPt[0] : midPt[1];
+          const [midX, midY] = projectCoords(midLat, midLng);
 
           return (
             <g key={road.id}>
@@ -399,6 +411,12 @@ export const FallbackSvgMap: React.FC<SvgMapProps> = () => {
                 className="cursor-pointer hover:stroke-cyan-300 transition-colors"
                 onClick={() => focusRoad(road)}
               />
+              {isRoadRiskMode && riskState === 'BLOCKED' && !isFiltered && (
+                <g transform={`translate(${midX - 9}, ${midY - 9})`} className="pointer-events-none">
+                  <circle cx="9" cy="9" r="8" fill="#dc2626" stroke="#ffffff" strokeWidth="1.5" />
+                  <line x1="4" y1="9" x2="14" y2="9" stroke="#ffffff" strokeWidth="2.5" strokeLinecap="round" />
+                </g>
+              )}
             </g>
           );
         })}

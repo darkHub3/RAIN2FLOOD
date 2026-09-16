@@ -171,15 +171,18 @@ export const SimulationProvider: React.FC<{ children: ReactNode }> = ({ children
     setSelectedRoad(road);
     setSelectedNode(null);
     setSelectedEdge(null);
-    if (road.path && road.path.length > 0) {
-      const midIdx = Math.floor(road.path.length / 2);
-      const [lat, lng] = road.path[midIdx];
+    const coords = (road.path && road.path.length > 0) ? road.path : road.geometry;
+    if (coords && coords.length > 0) {
+      const midIdx = Math.floor(coords.length / 2);
+      const midPt = coords[midIdx];
+      const lat = midPt[0] > 70 ? midPt[1] : midPt[0];
+      const lng = midPt[0] > 70 ? midPt[0] : midPt[1];
       setTargetLocation({ lat, lng, zoom: 15.5, name: road.name });
     }
   };
 
   const selectRoadById = (id: string) => {
-    const found = ROAD_SEGMENTS.find((r) => r.id === id) || null;
+    const found = ROAD_SEGMENTS.find((r) => r.id === id || r.legacyId === id) || null;
     if (found) {
       focusRoad(found);
     } else {

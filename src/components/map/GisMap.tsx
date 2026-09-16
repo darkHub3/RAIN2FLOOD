@@ -416,7 +416,9 @@ export const GisMap: React.FC<GisMapProps> = () => {
         opacity = isFloodDrainageMode ? 0.20 : isFiltered ? 0.18 : 0.92;
       }
 
-      const latLngs: [number, number][] = road.path.map((c) => [c[0], c[1]]);
+      const coords = (road.path && road.path.length > 0) ? road.path : road.geometry;
+      if (!coords || coords.length === 0) return;
+      const latLngs: [number, number][] = coords.map((c) => (c[0] > 70 ? [c[1], c[0]] : [c[0], c[1]]));
 
       // Selection Highlight
       if (isSelected) {
@@ -463,9 +465,9 @@ export const GisMap: React.FC<GisMapProps> = () => {
       overlayGroup.addLayer(roadLine);
 
       // In ROAD RISK mode: Add ⛔ barrier markers on BLOCKED segments
-      if (isRoadRiskMode && riskState === 'BLOCKED' && !isFiltered && road.path.length > 0) {
-        const midIdx = Math.floor(road.path.length / 2);
-        const midCoord = road.path[midIdx];
+      if (isRoadRiskMode && riskState === 'BLOCKED' && !isFiltered && latLngs.length > 0) {
+        const midIdx = Math.floor(latLngs.length / 2);
+        const midCoord = latLngs[midIdx];
         const barrierIcon = L.divIcon({
           className: 'barrier-marker',
           html: `
@@ -848,6 +850,13 @@ export const GisMap: React.FC<GisMapProps> = () => {
                     <span className="text-white font-semibold truncate max-w-[170px]">{selectedRoad.name}</span>
                   </div>
 
+                  <div className="flex justify-between items-center text-[10px]">
+                    <span className="text-slate-400">Graph Edge:</span>
+                    <span className="text-cyan-300 font-mono">
+                      {selectedRoad.id} {selectedRoad.from && selectedRoad.to ? `(${selectedRoad.from} → ${selectedRoad.to})` : ''}
+                    </span>
+                  </div>
+
                   <div className="flex justify-between items-center">
                     <span className="text-slate-400">Status:</span>
                     <strong className={`font-bold px-1.5 py-0.2 rounded text-[10px] ${
@@ -893,9 +902,12 @@ export const GisMap: React.FC<GisMapProps> = () => {
                 {/* View on map action */}
                 <button
                   onClick={() => {
-                    if (selectedRoad.path && selectedRoad.path.length > 0) {
-                      const mid = selectedRoad.path[Math.floor(selectedRoad.path.length / 2)];
-                      mapInstanceRef.current?.flyTo([mid[0], mid[1]], 15.5, { duration: 0.8 });
+                    const cList = (selectedRoad.path && selectedRoad.path.length > 0) ? selectedRoad.path : selectedRoad.geometry;
+                    if (cList && cList.length > 0) {
+                      const mid = cList[Math.floor(cList.length / 2)];
+                      const targetLat = mid[0] > 70 ? mid[1] : mid[0];
+                      const targetLng = mid[0] > 70 ? mid[0] : mid[1];
+                      mapInstanceRef.current?.flyTo([targetLat, targetLng], 15.5, { duration: 0.8 });
                     }
                   }}
                   className="w-full py-1.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white font-mono text-[11px] font-bold shadow transition-colors flex items-center justify-center gap-1.5"

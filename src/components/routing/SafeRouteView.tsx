@@ -254,6 +254,13 @@ export const SafeRouteView: React.FC = () => {
                 <span className="text-white font-bold">{activeInspectRoad.name}</span>
               </div>
 
+              <div className="flex justify-between items-center text-[10px]">
+                <span className="text-slate-400 font-sans">Graph Edge:</span>
+                <span className="text-cyan-300 font-mono">
+                  {activeInspectRoad.id} {activeInspectRoad.from && activeInspectRoad.to ? `(${activeInspectRoad.from} → ${activeInspectRoad.to})` : ''}
+                </span>
+              </div>
+
               <div className="flex justify-between items-center">
                 <span className="text-slate-400 font-sans">Status:</span>
                 <span className={`font-bold px-2 py-0.5 rounded text-[11px] ${

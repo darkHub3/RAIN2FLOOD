@@ -76,13 +76,25 @@ export interface RoadTimestepState {
   timeToCritical?: string;
 }
 
+export interface RoadNode {
+  id: string; // "R-001", "R-002", etc.
+  name: string;
+  lat: number;
+  lng: number;
+  elevationM?: number;
+  corridor?: string;
+  description?: string;
+}
+
 export interface RoadSegment {
-  id: string;
+  id: string; // "RE-001", "RE-002", etc.
+  legacyId?: string; // "RD-01", etc. for backwards compatibility
   name: string;
   roadName?: string;
-  from?: string; // R-* intersection node
-  to?: string;   // R-* intersection node
-  path: [number, number][];
+  from: string; // "R-xxx" road node ID
+  to: string;   // "R-yyy" road node ID
+  geometry: [number, number][]; // [[lng, lat], ...] road-following polyline (GeoJSON standard)
+  path: [number, number][];     // [[lat, lng], ...] road-following polyline (Leaflet standard)
   timesteps: Record<TimeStep, RoadTimestepState>;
   description?: string;
 }
